@@ -128,6 +128,13 @@ textarea{resize:vertical;font-family:monospace;font-size:12px}
 .cnt-btn:hover{background:var(--accent);border-color:var(--accent);color:#fff}
 .cnt-num{min-width:22px;text-align:center;font-weight:700}
 .enc-footer{display:flex;align-items:center;justify-content:space-between;margin-top:10px;padding-top:10px;border-top:1px solid var(--border);font-size:13px;color:var(--text2)}
+.nar-card{background:var(--card2);border:1px solid var(--border);border-radius:6px;padding:12px 14px}
+.nar-header{display:flex;align-items:baseline;gap:8px;margin-bottom:7px;flex-wrap:wrap}
+.nar-name{font-family:'Cinzel',serif;font-weight:700;font-size:14px;color:var(--text)}
+.nar-class{font-size:11px;color:var(--text2);background:var(--card);border:1px solid var(--border);border-radius:3px;padding:1px 5px}
+.nar-stats{display:flex;flex-wrap:wrap;gap:8px;font-size:12px;color:var(--text2);margin-bottom:6px}
+.nar-feats{display:flex;flex-wrap:wrap;gap:6px;margin-top:4px}
+.nar-feat{font-size:11px;background:rgba(200,135,58,.15);border:1px solid rgba(200,135,58,.3);border-radius:3px;padding:2px 6px;color:var(--text)}
 .notes-row{padding:10px 14px 14px;border-top:1px solid var(--border);margin-top:8px}
 .notes-label{font-size:11px;color:var(--text2);margin-bottom:5px;letter-spacing:.05em;text-transform:uppercase}
 .dm-notes{width:100%;box-sizing:border-box;min-height:68px;resize:vertical;background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:4px;padding:7px 9px;font-family:'Crimson Text',Georgia,serif;font-size:13px;line-height:1.5;transition:border-color .15s}
@@ -598,6 +605,12 @@ pre{background:var(--card2);border:1px solid var(--border);border-radius:6px;pad
       <div class="flex gap-8 mt-16">
         <button class="btn btn-secondary" onclick="exportJSON()">⬇ Export JSON</button>
         <button class="btn btn-secondary" onclick="exportCSV()">⬇ Export CSV</button>
+      </div>
+
+      <!-- PC NARRATIVE REPORT -->
+      <div id="pcNarrativeSection" style="margin-top:28px">
+        <div class="section-title mb-16"><span>🧙 PC Combat Report</span></div>
+        <div id="pcNarrativeCards" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:10px"></div>
       </div>
 
       <!-- COMBAT LOG -->
@@ -1608,12 +1621,14 @@ function clonePartyForRun(src) {
     healBonus:pc.subHealBonus||0,
     evoBonus:pc.subEvoBonus||0,
     alive:true,conscious:true,stable:false,
-    ds:0,df:0,td:0,slu:0,raging:false,swActive:false,dodged:false,_round:1
+    ds:0,df:0,td:0,slu:0,raging:false,swActive:false,dodged:false,_round:1,
+    dmgDealt:0,dmgTaken:0,fuUsed:{},
+    markActive:false,agathysActive:false,agathysHp:0
   }));
 }
 function cloneMonstersForRun(enc) {
   const out=[];
-  for (const e of enc) for (let i=0;i<e.count;i++) out.push({...e.data,hp:e.data.hp_max,alive:true,breathReady:!!(e.data.breathWeapon)});
+  for (const e of enc) for (let i=0;i<e.count;i++) out.push({...e.data,hp:e.data.hp_max,alive:true,breathReady:!!(e.data.breathWeapon),stunned:false});
   return out;
 }
 
@@ -1637,9 +1652,12 @@ function doMonAtk(m,tgt,trn,hardcore) {
   if (!crit&&roll+m.attacks[0].hit_bonus<eac) return;
   const atk=m.attacks[0];
   let dmg=rollDice(atk.damage); if(crit) dmg+=rollDice(atk.damage);
-  if (tgt.class==='Rogue'&&!tgt.dodged&&(tgt.fu['Uncanny Dodge']||0)>0) { dmg=Math.floor(dmg/2); tgt.dodged=true; }
-  if (tgt.resistNonPsychic) dmg=Math.floor(dmg/2); // Bear Totem Warrior
+  if (tgt.class==='Rogue'&&!tgt.dodged&&(tgt.fu['Uncanny Dodge']||0)>0) { dmg=Math.floor(dmg/2); tgt.dodged=true; tgt.fuUsed['Uncanny Dodge']=(tgt.fuUsed['Uncanny Dodge']||0)+1; }
+  if (tgt.resistNonPsychic) dmg=Math.floor(dmg/2); // Barbarian Rage / Bear Totem
+  tgt.dmgTaken=(tgt.dmgTaken||0)+dmg;
   tgt.hp=Math.max(0,tgt.hp-dmg);
+  // Warlock: Armor of Agathys retaliation
+  if (tgt.agathysActive&&tgt.agathysHp>0&&dmg>0) { m.hp=Math.max(0,m.hp-5); if(m.hp===0)m.alive=false; tgt.agathysHp=0;tgt.agathysActive=false; }
   if (tgt.hp===0) {
     if (tgt.conscious) { tgt.conscious=false; tgt.ds=0; tgt.df=0; tgt.td++; }
     else { tgt.df++; if(tgt.df>=3) tgt.alive=false; }
@@ -1659,14 +1677,22 @@ function doPcAtk(pc,tgt,atk,trn,skipSneak) {
   let dmg=rollDice(atk.damage); if(crit) dmg+=rollDice(atk.damage);
   if (pc.raging) dmg+=2;
   if (!skipSneak&&atk.sneak_attack) dmg+=rollDice(atk.sneak_attack);
-  if (pc.class==='Paladin'&&pc.slots) { const sl=['1','2','3'].find(s=>(pc.slots[s]||0)>0); if(sl){pc.slots[sl]--;pc.slu++;dmg+=rollDice({'1':'2d8','2':'3d8','3':'4d8'}[sl]);} }
-  if (pc.subDmgBonus) dmg+=pc.subDmgBonus; // subclass flat dmg bonus
+  if (pc.class==='Paladin'&&pc.slots) { const sl=['1','2','3'].find(s=>(pc.slots[s]||0)>0); if(sl){pc.slots[sl]--;pc.slu++;pc.fuUsed['Divine Smite']=(pc.fuUsed['Divine Smite']||0)+1;dmg+=rollDice({'1':'2d8','2':'3d8','3':'4d8'}[sl]);} }
+  if (pc.markActive&&pc.class==='Ranger') dmg+=rollDice('1d6'); // Hunter's Mark bonus
+  if (pc.subDmgBonus) dmg+=pc.subDmgBonus;
   // Feature D: resistance/immunity by damage type
   const dt=atk.dmgType;
   if (dt&&tgt.immunities?.includes(dt)) return;
   if (dt&&tgt.resistances?.includes(dt)) dmg=Math.floor(dmg/2);
+  const hpBefore=tgt.hp;
   tgt.hp=Math.max(0,tgt.hp-dmg);
+  pc.dmgDealt=(pc.dmgDealt||0)+Math.min(dmg,hpBefore);
   if (tgt.hp===0) tgt.alive=false;
+  // Monk: Stunning Strike after a hit
+  if (pc.class==='Monk'&&(pc.fu['Stunning Strike']||0)>0&&tgt.alive&&!tgt.stunned) {
+    const conSave=r20()+pmod(tgt.con||10);
+    if (conSave<(pc.sdc||15)) { tgt.stunned=true;pc.fu['Stunning Strike']--;pc.fuUsed['Stunning Strike']=(pc.fuUsed['Stunning Strike']||0)+1; }
+  }
 }
 
 function deathSave(pc) {
@@ -1684,19 +1710,26 @@ function pcTurn(pc,allPcs,mons,trn) {
   // Cleric: heal dying ally (action priority)
   if (pc.class==='Cleric'&&(pc.slots['1']||0)>0) {
     const dy=allPcs.find(p=>p!==pc&&p.alive&&!p.conscious&&!p.stable);
-    if (dy) { dy.hp=rollDice('1d8+3')+(pc.healBonus||0);dy.conscious=true;dy.ds=0;dy.df=0;pc.slots['1']--;pc.slu++;bonusTurn(pc,allPcs,lm,trn);return; }
+    if (dy) { dy.hp=rollDice('1d8+3')+(pc.healBonus||0);dy.conscious=true;dy.ds=0;dy.df=0;pc.slots['1']--;pc.slu++;pc.fuUsed['Heal']=(pc.fuUsed['Heal']||0)+1;bonusTurn(pc,allPcs,lm,trn);return; }
   }
-  // Second Wind (bonus action)
+  // Warlock: Armor of Agathys (cast on first turn)
+  if (pc.class==='Warlock'&&(pc.fu['Armor of Agathys']||0)>0&&!pc.agathysActive) {
+    pc.agathysActive=true;pc.agathysHp=5;pc.fu['Armor of Agathys']--;
+    pc.hp=Math.min(pc.hp_max,pc.hp+5);pc.fuUsed['Armor of Agathys']=(pc.fuUsed['Armor of Agathys']||0)+1;
+  }
+  // Second Wind (bonus action — use at 50% HP)
   const sw=pc.features.find(f=>f.name==='Second Wind');
-  if (sw&&(pc.fu['Second Wind']||0)>0&&pc.hp<pc.hp_max*.35) { pc.hp=Math.min(pc.hp_max,pc.hp+rollDice(sw.heal||'1d10+5'));pc.fu['Second Wind']--; }
-  // Barbarian Rage
-  if (pc.class==='Barbarian'&&!pc.raging&&(pc.fu['Rage']||0)>0) { pc.raging=true;pc.fu['Rage']--; }
+  if (sw&&(pc.fu['Second Wind']||0)>0&&pc.hp<pc.hp_max*.5) { pc.hp=Math.min(pc.hp_max,pc.hp+rollDice(sw.heal||'1d10+5'));pc.fu['Second Wind']--;pc.fuUsed['Second Wind']=(pc.fuUsed['Second Wind']||0)+1; }
+  // Barbarian Rage — activates first turn, grants damage resistance
+  if (pc.class==='Barbarian'&&!pc.raging&&(pc.fu['Rage']||0)>0) { pc.raging=true;pc.fu['Rage']--;pc.resistNonPsychic=true;pc.fuUsed['Rage']=(pc.fuUsed['Rage']||0)+1; }
+  // Ranger: activate Hunter's Mark before attacking
+  if (pc.class==='Ranger'&&!pc.markActive&&(pc.fu["Hunter's Mark"]||0)>0) { pc.markActive=true;pc.fu["Hunter's Mark"]--;pc.fuUsed["Hunter's Mark"]=(pc.fuUsed["Hunter's Mark"]||0)+1; }
   // Fireball
   const fb=pc.features.find(f=>f.name==='Fireball'&&f.aoe);
   if (fb&&lm.length>=2&&pc.slots) {
     const sl=String(fb.spellLevel||3);
     if ((pc.slots[sl]||0)>0) {
-      let rd=rollDice(fb.damage||'8d6')+(pc.evoBonus||0); pc.slots[sl]--;pc.slu++;
+      let rd=rollDice(fb.damage||'8d6')+(pc.evoBonus||0); pc.slots[sl]--;pc.slu++;pc.fuUsed['Fireball']=(pc.fuUsed['Fireball']||0)+1;
       for (const m of lm) { const sv=r20()+pmod(m.dex||10); m.hp=Math.max(0,m.hp-(sv>=(fb.saveDC||15)?Math.floor(rd/2):rd)); if(m.hp===0)m.alive=false; }
       bonusTurn(pc,allPcs,mons.filter(m=>m.alive),trn); return;
     }
@@ -1708,9 +1741,9 @@ function pcTurn(pc,allPcs,mons,trn) {
     const tgt=bestMonTarget(mons.filter(m=>m.alive)); if(!tgt) break;
     doPcAtk(pc,tgt,atk,trn,sneakUsed); if(!sneakUsed&&atk.sneak_attack)sneakUsed=true;
   }
-  // Action Surge
-  if ((pc.fu['Action Surge']||0)>0&&pc.hp<pc.hp_max*.35) {
-    pc.fu['Action Surge']--;
+  // Action Surge — use early (rounds 1-3) or when hurt
+  if ((pc.fu['Action Surge']||0)>0&&(pc._round<=3||pc.hp<pc.hp_max*.5)) {
+    pc.fu['Action Surge']--;pc.fuUsed['Action Surge']=(pc.fuUsed['Action Surge']||0)+1;
     for (let i=0;i<multi;i++) { const t2=bestMonTarget(mons.filter(m=>m.alive)); if(!t2)break; doPcAtk(pc,t2,atk,trn,true); }
   }
   bonusTurn(pc,allPcs,mons.filter(m=>m.alive),trn);
@@ -1720,16 +1753,18 @@ function bonusTurn(pc,allPcs,lm,trn) {
   if (!lm.length) return;
   if (pc.class==='Cleric') {
     const swF=pc.features.find(f=>f.name==='Spiritual Weapon');
-    if (swF&&!pc.swActive&&(pc.slots['2']||0)>0) { pc.swActive=true;pc.slots['2']--;pc.slu++; }
-    if (pc.swActive) { const t=bestMonTarget(lm); if(t&&r20()+(swF?.hit_bonus||6)>=t.ac){t.hp=Math.max(0,t.hp-rollDice(swF?.damage||'3d8+3'));if(t.hp===0)t.alive=false;} }
+    if (swF&&!pc.swActive&&(pc.slots['2']||0)>0) { pc.swActive=true;pc.slots['2']--;pc.slu++;pc.fuUsed['Spiritual Weapon']=(pc.fuUsed['Spiritual Weapon']||0)+1; }
+    if (pc.swActive) { const t=bestMonTarget(lm); if(t){const hbSW=t.hp;if(r20()+(swF?.hit_bonus||6)>=t.ac){const sdmg=rollDice(swF?.damage||'3d8+3');t.hp=Math.max(0,t.hp-sdmg);pc.dmgDealt=(pc.dmgDealt||0)+Math.min(sdmg,hbSW);if(t.hp===0)t.alive=false;}} }
   }
   if (pc.class==='Paladin'&&(pc.fu['Lay on Hands']||0)>0) {
-    const ta=allPcs.filter(p=>p.alive&&p.conscious&&p.hp<p.hp_max*.35).sort((a,b)=>a.hp-b.hp)[0];
-    if (ta) { ta.hp=Math.min(ta.hp_max,ta.hp+5);pc.fu['Lay on Hands']--; }
+    const ta=allPcs.filter(p=>p.alive&&p.conscious&&p.hp<p.hp_max*.5).sort((a,b)=>a.hp-b.hp)[0];
+    if (ta) { ta.hp=Math.min(ta.hp_max,ta.hp+5);pc.fu['Lay on Hands']--;pc.fuUsed['Lay on Hands']=(pc.fuUsed['Lay on Hands']||0)+1; }
   }
 }
 
 function monTurn(m,mons,pcs,trn,hardcore) {
+  // Stunned monsters lose their turn (Monk Stunning Strike)
+  if (m.stunned) { m.stunned=false; return; }
   const lv=pcs.filter(p=>p.alive&&p.conscious);
   const dy=pcs.filter(p=>p.alive&&!p.conscious&&!p.stable);
 
@@ -1897,7 +1932,7 @@ function runCombatVerbose(pCfg,enc,trn,hardcore) {
 }
 
 function simMap(pCfg,enc,trn,N,hardcore) {
-  const st=pCfg.map(p=>({name:p.name,class:p.class,surv:0,hpS:0,deaths:0,downed:0,slots:0}));
+  const st=pCfg.map(p=>({name:p.name,class:p.class,surv:0,hpS:0,deaths:0,downed:0,slots:0,dmgDealt:0,dmgTaken:0,fuUsed:{}}));
   let wins=0,tpks=0,rndS=0,kS=0;
   for (let i=0;i<N;i++) {
     const r=runCombat(pCfg,enc,trn,hardcore);
@@ -1908,6 +1943,8 @@ function simMap(pCfg,enc,trn,N,hardcore) {
       if (pc.alive&&pc.conscious){st[j].surv++;st[j].hpS+=pc.hp;}
       if (!pc.alive) st[j].deaths++;
       st[j].downed+=pc.td||0; st[j].slots+=pc.slu||0;
+      st[j].dmgDealt+=(pc.dmgDealt||0); st[j].dmgTaken+=(pc.dmgTaken||0);
+      for (const [k,v] of Object.entries(pc.fuUsed||{})) st[j].fuUsed[k]=(st[j].fuUsed[k]||0)+v;
     });
   }
   // One verbose replay for the combat log
@@ -1984,6 +2021,7 @@ function renderResults(data) {
     return `<tr><td class="bold">${pc.name}</td><td class="cm">${pc.class}</td><td class="${cl} bold">${sp.toFixed(1)}%</td><td class="cm">${pc.deaths}</td><td>${avgHP} HP</td><td class="cm">${(pc.downed/total).toFixed(2)}</td><td class="cm">${pc.slots?(pc.slots/total).toFixed(1)+'/run':'—'}</td></tr>`;
   }).join('');
   renderCharts(res,p,N);
+  renderPcNarrative(data);
   renderCombatLog(data);
   renderMonCompendium(data);
 }
@@ -2032,6 +2070,57 @@ function fmtLogEvent(evt) {
     return `<div style="color:${col};font-size:11px;margin:1px 0">💫 <b>${actor}</b> death save: ${txt}</div>`;
   }
   return '';
+}
+function renderPcNarrative(data) {
+  const el=document.getElementById('pcNarrativeCards');
+  if (!el) return;
+  const {res,N}=data;
+  // Aggregate across all 3 maps (average per PC per run)
+  const total=N*3;
+  // Collect pc stats merged across maps
+  const merged={};
+  Object.values(res).forEach(mapRes=>{
+    (mapRes.st||[]).forEach(pc=>{
+      if (!merged[pc.name]) merged[pc.name]={name:pc.name,class:pc.class,surv:0,deaths:0,downed:0,slots:0,dmgDealt:0,dmgTaken:0,fuUsed:{}};
+      const m=merged[pc.name];
+      m.surv+=pc.surv; m.deaths+=pc.deaths; m.downed+=pc.downed; m.slots+=pc.slots;
+      m.dmgDealt+=(pc.dmgDealt||0); m.dmgTaken+=(pc.dmgTaken||0);
+      for (const [k,v] of Object.entries(pc.fuUsed||{})) m.fuUsed[k]=(m.fuUsed[k]||0)+v;
+    });
+  });
+  const pcs=Object.values(merged);
+  el.innerHTML=pcs.map(pc=>{
+    const survPct=(pc.surv/total*100).toFixed(0);
+    const downed=(pc.downed/total).toFixed(1);
+    const died=(pc.deaths/total).toFixed(1);
+    const dmgOut=(pc.dmgDealt/total).toFixed(0);
+    const dmgIn=(pc.dmgTaken/total).toFixed(0);
+    const sp=Number(survPct);
+    const survCl=sp>=60?'tgreen':sp>=35?'tgold':'tred';
+    // Feature use lines — only show features actually used
+    const fuLines=Object.entries(pc.fuUsed)
+      .filter(([,v])=>v>0)
+      .sort((a,b)=>b[1]-a[1])
+      .map(([k,v])=>`<span class="nar-feat">${k}: <b>${(v/total).toFixed(1)}×</b>/run</span>`)
+      .join('');
+    // Down/death narrative
+    const downStr=Number(downed)>0?`<span class="tgold">⬇ Down ${downed}×/run</span>`:
+                  `<span class="tgreen">⬇ Never downed</span>`;
+    const diedStr=Number(died)>0?`<span class="tred">☠ Dead ${died}×/run</span>`:'';
+    return `<div class="nar-card">
+      <div class="nar-header">
+        <span class="nar-name">${pc.name}</span>
+        <span class="nar-class">${pc.class}</span>
+        <span class="${survCl} bold">${survPct}% survived</span>
+      </div>
+      <div class="nar-stats">
+        ${downStr}${diedStr?'  '+diedStr:''}
+        <span title="Average damage dealt per run">⚔ ${dmgOut} dmg/run</span>
+        <span title="Average damage taken per run">🛡 ${dmgIn} taken/run</span>
+      </div>
+      ${fuLines?`<div class="nar-feats">${fuLines}</div>`:''}
+    </div>`;
+  }).join('');
 }
 function renderCombatLog(data) {
   const {res}=data;
