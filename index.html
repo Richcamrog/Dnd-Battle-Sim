@@ -1,0 +1,2653 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>D&D 5e Battle Simulator</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Crimson+Text:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:#090704; --card:#130f09; --card2:#1c1610; --border:#3c2e1c;
+  --accent:#c8873a; --accent2:#9e6428; --text:#e8d8b8; --text2:#9a8768;
+  --text3:#6a5840; --red:#c8563a; --green:#5a9e6a; --gold:#e8a828;
+  --blue:#5a8ab0; --purple:#9a6ab0;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{
+  font-family:'Crimson Text',Georgia,serif;
+  background:var(--bg);
+  color:var(--text);
+  min-height:100vh;
+  font-size:16px;
+  line-height:1.6;
+  /* subtle wood grain lines */
+  background-image:
+    repeating-linear-gradient(87deg,transparent 0,transparent 3px,rgba(255,180,80,.012) 3px,rgba(255,180,80,.012) 4px),
+    repeating-linear-gradient(2deg,transparent 0,transparent 70px,rgba(0,0,0,.06) 70px,rgba(0,0,0,.06) 72px);
+}
+a{color:var(--accent)}
+.container{max-width:1200px;margin:0 auto;padding:0 16px}
+header{
+  background:linear-gradient(135deg,#1a1208,#0e0b05);
+  border-bottom:2px solid var(--border);
+  box-shadow:0 2px 18px rgba(0,0,0,.7);
+  padding:14px 0;position:sticky;top:0;z-index:100;
+}
+.header-inner{display:flex;align-items:center;gap:12px}
+.header-title{font-family:'Cinzel',serif;font-size:22px;font-weight:700;color:var(--gold);letter-spacing:.5px;text-shadow:0 0 18px rgba(232,168,40,.35)}
+.header-sub{color:var(--text2);font-size:13px;font-style:italic}
+.badge-status{margin-left:auto;font-size:11px;padding:3px 10px;border-radius:4px;background:var(--card2);border:1px solid var(--border);color:var(--text2)}
+.badge-status.ready{color:var(--green);border-color:var(--green)}
+.badge-status.loading{color:var(--gold);border-color:var(--gold);animation:pulse 1.5s infinite}
+.badge-status.error{color:var(--red);border-color:var(--red)}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* TABS */
+.tabs-nav{display:flex;background:var(--card);border-bottom:2px solid var(--border);padding:0 16px;max-width:1200px;margin:0 auto}
+.tab-btn{padding:13px 20px;background:none;border:none;color:var(--text2);cursor:pointer;font-size:14px;font-weight:500;border-bottom:2px solid transparent;transition:all .15s;font-family:'Cinzel',serif;letter-spacing:.3px}
+.tab-btn:hover{color:var(--text)}
+.tab-btn.active{color:var(--gold);border-bottom-color:var(--gold)}
+.tab-panel{display:none;padding:24px 0}
+.tab-panel.active{display:block}
+
+/* CARD */
+.card{background:var(--card);border:1px solid var(--border);border-radius:6px;padding:16px;box-shadow:inset 0 1px 0 rgba(255,200,100,.04)}
+.section-title{font-family:'Cinzel',serif;font-size:15px;font-weight:600;margin-bottom:16px;display:flex;align-items:center;gap:8px;color:var(--gold);letter-spacing:.3px;text-transform:uppercase}
+.mb-16{margin-bottom:16px}.mt-16{margin-top:16px}.mt-24{margin-top:24px}
+
+/* GRID */
+.grid-4{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+@media(max-width:900px){.grid-4{grid-template-columns:1fr 1fr}}
+@media(max-width:500px){.grid-4{grid-template-columns:1fr}}
+
+/* PC CARDS */
+.pc-card{background:var(--card2);border:1px solid var(--border);border-radius:6px;padding:14px;box-shadow:0 2px 8px rgba(0,0,0,.4)}
+.pc-card-add{display:flex;align-items:center;justify-content:center;min-height:200px;cursor:pointer;border-style:dashed;transition:border-color .15s}
+.pc-card-add:hover{border-color:var(--accent)}
+.pc-head{display:flex;align-items:center;gap:8px;margin-bottom:12px}
+.pc-num{width:24px;height:24px;border-radius:50%;background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0;box-shadow:0 0 8px rgba(200,135,58,.4)}
+.pc-name{flex:1;background:transparent;border:none;padding:0;font-size:15px;font-weight:600;color:var(--text);font-family:'Cinzel',serif;min-width:0}
+.pc-name:focus{outline:none}
+
+/* FORMS */
+.frow{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px}
+.frow3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:8px}
+label{display:block;font-size:12px;color:var(--text2);margin-bottom:3px;font-style:italic}
+input[type=text],input[type=number],select,textarea{width:100%;background:var(--bg);border:1px solid var(--border);border-radius:4px;color:var(--text);padding:6px 9px;font-size:13px;font-family:inherit}
+input[type=text]:focus,input[type=number]:focus,select:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 2px rgba(200,135,58,.15)}
+select option{background:var(--card2)}
+textarea{resize:vertical;font-family:monospace;font-size:12px}
+
+/* BUTTONS */
+.btn{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border-radius:5px;border:none;cursor:pointer;font-size:13px;font-weight:500;font-family:inherit;transition:all .15s}
+.btn-primary{background:var(--accent);color:#1a0e04;font-weight:600}
+.btn-primary:hover{background:var(--gold)}
+.btn-secondary{background:var(--card2);color:var(--text);border:1px solid var(--border)}
+.btn-secondary:hover{border-color:var(--accent);color:var(--accent)}
+.btn-sm{padding:4px 10px;font-size:12px}
+.btn-xs{padding:2px 7px;font-size:11px}
+.btn-icon{width:20px;height:20px;border:none;background:transparent;color:var(--text3);cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center;border-radius:3px;font-family:inherit;line-height:1;flex-shrink:0}
+.btn-icon:hover{background:var(--red);color:#fff}
+.btn-run{background:linear-gradient(135deg,var(--accent),var(--accent2));color:#1a0e04;padding:13px 34px;font-size:16px;font-weight:700;border-radius:6px;border:none;cursor:pointer;font-family:'Cinzel',serif;letter-spacing:.5px;transition:all .2s;box-shadow:0 4px 18px rgba(200,135,58,.35)}
+.btn-run:hover{transform:translateY(-1px);box-shadow:0 6px 24px rgba(200,135,58,.55);background:linear-gradient(135deg,var(--gold),var(--accent))}
+.btn-run:disabled{opacity:.5;cursor:not-allowed;transform:none}
+
+/* ATTACKS DISPLAY */
+.atk-mini{margin-top:8px;font-size:11px;color:var(--text2)}
+.atk-row{display:flex;align-items:center;gap:4px;padding:2px 0;flex-wrap:wrap}
+
+/* MAP TABS */
+.map-tabs{display:flex;gap:8px;margin-bottom:16px}
+.map-tab{padding:7px 14px;border-radius:5px;border:1px solid var(--border);background:var(--card2);color:var(--text2);cursor:pointer;font-size:13px;font-family:'Cinzel',serif;transition:all .15s;letter-spacing:.2px}
+.map-tab:hover{border-color:var(--accent);color:var(--text)}
+.map-tab.active[data-map=open-field]{border-color:var(--gold);background:rgba(232,168,40,.1);color:var(--gold)}
+.map-tab.active[data-map=dungeon]{border-color:var(--purple);background:rgba(154,106,176,.1);color:var(--purple)}
+.map-tab.active[data-map=forest]{border-color:var(--green);background:rgba(90,158,106,.1);color:var(--green)}
+.map-panel{display:none}
+.map-panel.active{display:block}
+.map-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:8px}
+.terrain-badge{font-size:11px;color:var(--text2);padding:5px 10px;background:var(--card2);border-radius:4px;border-left:3px solid var(--border);margin-bottom:12px}
+
+/* MONSTER SEARCH */
+.search-wrap{position:relative;flex:1}
+.search-drop{position:absolute;top:100%;left:0;right:0;background:var(--card);border:1px solid var(--border);border-top:none;border-radius:0 0 6px 6px;z-index:50;max-height:220px;overflow-y:auto;display:none}
+.search-drop.open{display:block}
+.sr-item{padding:7px 10px;cursor:pointer;display:flex;align-items:center;justify-content:space-between;font-size:12px;gap:8px}
+.sr-item:hover{background:var(--card2)}
+.sr-meta{display:flex;gap:5px;align-items:center;flex-shrink:0}
+
+/* ENCOUNTER LIST */
+.enc-list{display:flex;flex-direction:column;gap:6px;min-height:52px}
+.enc-empty{padding:18px;text-align:center;color:var(--text3);font-size:13px;border:1px dashed var(--border);border-radius:6px;font-style:italic}
+.enc-row{display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--card2);border:1px solid var(--border);border-radius:6px;font-size:13px}
+.enc-info{flex:1;display:flex;align-items:center;gap:5px;flex-wrap:wrap;min-width:0}
+.enc-ctrl{display:flex;align-items:center;gap:4px;flex-shrink:0}
+.cnt-btn{width:22px;height:22px;border:1px solid var(--border);background:var(--card);color:var(--text);border-radius:3px;cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center;line-height:1;font-family:inherit}
+.cnt-btn:hover{background:var(--accent);border-color:var(--accent);color:#fff}
+.cnt-num{min-width:22px;text-align:center;font-weight:700}
+.enc-footer{display:flex;align-items:center;justify-content:space-between;margin-top:10px;padding-top:10px;border-top:1px solid var(--border);font-size:13px;color:var(--text2)}
+.notes-row{padding:10px 14px 14px;border-top:1px solid var(--border);margin-top:8px}
+.notes-label{font-size:11px;color:var(--text2);margin-bottom:5px;letter-spacing:.05em;text-transform:uppercase}
+.dm-notes{width:100%;box-sizing:border-box;min-height:68px;resize:vertical;background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:4px;padding:7px 9px;font-family:'Crimson Text',Georgia,serif;font-size:13px;line-height:1.5;transition:border-color .15s}
+.dm-notes:focus{outline:none;border-color:var(--accent)}
+.dm-notes::placeholder{color:var(--text3)}
+
+/* CUSTOM MONSTER FORM */
+.custom-form{background:var(--card2);border:1px solid var(--border);border-radius:6px;padding:12px;margin-top:10px;display:none}
+.custom-form.open{display:block}
+.custom-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin-bottom:8px}
+@media(max-width:600px){.custom-grid{grid-template-columns:repeat(3,1fr)}}
+
+/* BADGES */
+.badge{font-size:11px;padding:1px 6px;border-radius:3px;white-space:nowrap}
+.b-cr{color:var(--blue);background:rgba(90,138,176,.12);border:1px solid rgba(90,138,176,.35)}
+.b-xp{color:var(--gold);background:rgba(232,168,40,.1);border:1px solid rgba(232,168,40,.3)}
+.b-hp{color:var(--red)}
+.b-ac{color:var(--text2)}
+.b-type{color:var(--text3)}
+
+/* PROGRESS */
+.progress-wrap{height:8px;background:var(--card2);border-radius:4px;overflow:hidden;margin-top:8px}
+.progress-bar{height:100%;background:linear-gradient(90deg,var(--accent),var(--accent2));border-radius:4px;width:0;transition:width .15s}
+.spinner{width:16px;height:16px;border:2px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .6s linear infinite;display:inline-block;flex-shrink:0}
+
+/* RESULTS */
+.summary-cards{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:24px}
+@media(max-width:600px){.summary-cards{grid-template-columns:1fr 1fr}}
+.sum-card{background:var(--card2);border:1px solid var(--border);border-radius:8px;padding:14px 16px;text-align:center}
+.sum-val{font-size:30px;font-weight:700;color:var(--gold);line-height:1;margin-bottom:4px;font-family:'Cinzel',serif}
+.sum-label{font-size:12px;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;font-style:italic}
+.charts-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px}
+@media(max-width:700px){.charts-grid{grid-template-columns:1fr}}
+.chart-card{background:var(--card2);border:1px solid var(--border);border-radius:6px;padding:16px}
+.chart-card canvas{max-height:250px}
+.chart-title{font-size:12px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:12px;font-family:'Cinzel',serif}
+
+/* TABLES */
+.tbl-wrap{overflow-x:auto;margin-bottom:24px}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{text-align:left;padding:9px 12px;background:var(--card2);color:var(--text2);font-weight:600;text-transform:uppercase;font-size:11px;letter-spacing:.5px;border-bottom:1px solid var(--border);font-family:'Cinzel',serif}
+td{padding:9px 12px;border-bottom:1px solid rgba(60,46,28,.5)}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:rgba(200,135,58,.05)}
+.cg{color:var(--green);font-weight:600}.cr{color:var(--red)}.cgold{color:var(--gold);font-weight:600}.cm{color:var(--text2)}
+
+/* ABOUT */
+.about-wrap{max-width:700px}
+.about-wrap h2{font-family:'Cinzel',serif;font-size:15px;margin:20px 0 10px;color:var(--gold)}
+.about-wrap p,.about-wrap li{color:var(--text2);font-size:14px;margin-bottom:8px}
+.about-wrap ul{padding-left:20px}
+pre{background:var(--card2);border:1px solid var(--border);border-radius:6px;padding:12px;font-size:12px;overflow-x:auto;color:var(--text);font-family:'Consolas','Courier New',monospace;margin-bottom:12px}
+
+/* UTILS */
+.flex{display:flex}.flex-c{display:flex;align-items:center}.gap-8{gap:8px}.gap-12{gap:12px}.ml-a{margin-left:auto}
+.tg{color:var(--green)}.tr{color:var(--red)}.tgold{color:var(--gold)}.tb{color:var(--blue)}.tm{color:var(--text2)}.tp{color:var(--purple)}
+.bold{font-weight:600}.txs{font-size:12px}.tsm{font-size:13px}
+
+/* IMPORT MODAL */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:500;align-items:center;justify-content:center}
+.modal-overlay.open{display:flex}
+.modal-box{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:24px;width:min(560px,95vw);max-height:90vh;overflow-y:auto}
+.modal-title{font-size:16px;font-weight:700;margin-bottom:4px;color:var(--accent)}
+.modal-sub{font-size:12px;color:var(--text2);margin-bottom:16px}
+.modal-drop{border:2px dashed var(--border);border-radius:8px;padding:20px;text-align:center;cursor:pointer;transition:border-color .15s;margin-bottom:12px}
+.modal-drop:hover,.modal-drop.drag-over{border-color:var(--accent)}
+.modal-drop-icon{font-size:28px;margin-bottom:6px}
+.modal-drop-text{font-size:12px;color:var(--text2)}
+.modal-or{text-align:center;color:var(--text3);font-size:11px;margin:8px 0}
+.import-msg{margin-top:10px;font-size:12px;min-height:18px}
+.import-msg.ok{color:var(--green)}.import-msg.err{color:var(--red)}
+/* SEED MONSTER */
+.seed-row{display:flex;align-items:center;gap:8px;margin-bottom:10px;flex-wrap:wrap}
+.seed-label{font-size:11px;color:var(--text2);white-space:nowrap}
+.seed-search-wrap{position:relative;flex:1;min-width:160px}
+.seed-chip{display:inline-flex;align-items:center;gap:6px;background:rgba(240,180,41,.12);border:1px solid rgba(240,180,41,.4);border-radius:20px;padding:3px 6px 3px 10px;font-size:12px;color:var(--gold)}
+.seed-chip-name{font-weight:600}
+.seed-chip-cr{font-size:10px;color:var(--text2)}
+.seed-chip-x{background:none;border:none;color:var(--text3);cursor:pointer;font-size:14px;line-height:1;padding:0 2px;font-family:inherit}
+.seed-chip-x:hover{color:var(--red)}
+
+/* SHAPE SELECTOR */
+.shape-row{display:flex;align-items:center;gap:6px;margin-bottom:10px;flex-wrap:wrap}
+.shape-chip{font-size:11px;padding:3px 9px;border-radius:12px;border:1px solid var(--border);background:var(--card2);color:var(--text2);cursor:pointer;transition:all .15s;white-space:nowrap;user-select:none}
+.shape-chip:hover{border-color:var(--accent);color:var(--accent)}
+.shape-chip.active{background:rgba(159,122,234,.18);border-color:var(--accent);color:var(--accent);font-weight:600}
+
+/* HARDCORE TOGGLE */
+.hardcore-wrap{display:flex;align-items:center;gap:10px;cursor:pointer;user-select:none}
+.hc-toggle{position:relative;width:40px;height:22px;flex-shrink:0}
+.hc-toggle input{opacity:0;width:0;height:0;position:absolute}
+.hc-slider{position:absolute;inset:0;background:var(--card2);border:1px solid var(--border);border-radius:11px;transition:.2s}
+.hc-slider:before{content:'';position:absolute;width:16px;height:16px;left:2px;top:2px;background:var(--text3);border-radius:50%;transition:.2s}
+.hc-toggle input:checked ~ .hc-slider{background:rgba(224,92,92,.2);border-color:var(--red)}
+.hc-toggle input:checked ~ .hc-slider:before{transform:translateX(18px);background:var(--red)}
+.hc-label{font-size:13px;font-weight:600;color:var(--text2);transition:color .2s}
+.hc-label.active{color:var(--red)}
+.hc-desc{font-size:11px;color:var(--text3)}
+
+/* MONSTER STAT BLOCK MODAL */
+.msb-box{width:min(680px,95vw);max-height:90vh;overflow-y:auto;background:var(--card);padding:0;border-radius:10px}
+.msb-inner{padding:20px 24px}
+.msb-name{font-family:'Cinzel',serif;font-size:22px;font-weight:700;color:var(--gold);margin-bottom:2px}
+.msb-sub{font-size:14px;color:var(--text2);margin-bottom:10px;font-style:italic}
+.msb-divider{height:2px;background:linear-gradient(90deg,var(--gold),transparent);margin:8px 0}
+.msb-prop{font-size:13px;margin:3px 0;color:var(--text2);line-height:1.5}
+.msb-prop strong{color:var(--text)}
+.msb-stat-row{display:flex;margin:10px 0}
+.msb-stat-box{flex:1;text-align:center;padding:6px 2px;background:var(--card2);border:1px solid var(--border)}
+.msb-stat-box:first-child{border-radius:6px 0 0 6px}
+.msb-stat-box:last-child{border-radius:0 6px 6px 0}
+.msb-stat-lbl{font-size:9px;font-weight:700;text-transform:uppercase;color:var(--text2);letter-spacing:.5px}
+.msb-stat-val{font-size:15px;font-weight:700;color:var(--text)}
+.msb-stat-mod{font-size:10px;color:var(--text2)}
+.msb-section{margin-top:10px}
+.msb-sec-title{font-size:10px;font-weight:700;color:var(--gold);text-transform:uppercase;letter-spacing:1px;border-bottom:1px solid rgba(240,180,41,.25);padding-bottom:3px;margin-bottom:6px}
+.msb-trait{margin-bottom:6px;font-size:13px;color:var(--text2);line-height:1.5}
+.msb-trait strong{color:var(--text);font-style:italic}
+.pill{display:inline-block;font-size:10px;padding:1px 6px;border-radius:3px;margin:2px 2px 2px 0;font-weight:500}
+.pill-r{background:rgba(224,92,92,.15);border:1px solid rgba(224,92,92,.3);color:var(--red)}
+.pill-i{background:rgba(74,159,224,.12);border:1px solid rgba(74,159,224,.3);color:var(--blue)}
+.pill-c{background:rgba(156,89,209,.12);border:1px solid rgba(156,89,209,.3);color:var(--purple)}
+.pill-g{background:rgba(76,175,125,.12);border:1px solid rgba(76,175,125,.3);color:var(--green)}
+.msb-close-btn{float:right;background:none;border:none;color:var(--text3);cursor:pointer;font-size:18px;line-height:1;padding:0;margin:-2px -4px 0 8px;font-family:inherit}
+.msb-close-btn:hover{color:var(--red)}
+
+.sb-preview{background:var(--card2);border:1px solid var(--border);border-radius:6px;padding:10px;font-size:11px;color:var(--text2);margin-top:10px;display:none}
+.sb-preview.show{display:block}
+.sb-row{display:flex;gap:6px;flex-wrap:wrap;margin-top:4px}
+.sb-field{background:var(--card);border:1px solid var(--border);border-radius:4px;padding:3px 8px;font-size:11px}
+.sb-field span{color:var(--accent);font-weight:600}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="container header-inner">
+    <div>
+      <div class="header-title">⚔ D&D 5e Battle Simulator</div>
+      <div class="header-sub">Monte Carlo combat analysis · 1000 runs per map</div>
+    </div>
+    <div class="badge-status loading" id="statusBadge">Loading bestiary...</div>
+  </div>
+</header>
+
+<div class="container">
+  <div class="tabs-nav">
+    <button class="tab-btn active" data-tab="setup"   onclick="switchTab('setup')">Setup</button>
+    <button class="tab-btn"        data-tab="results" onclick="switchTab('results')">Results</button>
+    <button class="tab-btn"        data-tab="about"   onclick="switchTab('about')">About</button>
+  </div>
+
+  <!-- ========== SETUP ========== -->
+  <div class="tab-panel active" id="tab-setup">
+
+    <div class="mb-16">
+      <div class="section-title" style="justify-content:space-between;flex-wrap:wrap;gap:8px">
+        <span>⚔️ Party <span class="txs tm" style="font-weight:normal">(choose class to load preset · edit any field)</span></span>
+        <button class="btn btn-secondary btn-sm" onclick="openImportModal()" title="Import Roll20 dnd2024byroll20 character JSON">📥 Import Roll20 JSON</button>
+      </div>
+      <div class="grid-4" id="partyGrid"></div>
+    </div>
+
+    <div class="card mb-16">
+      <div class="flex-c gap-12" style="flex-wrap:wrap">
+        <div>
+          <label>Difficulty</label>
+          <select id="diffSel" style="width:130px" onchange="updateBudgets()">
+            <option value="easy">Easy</option>
+            <option value="medium">Medium</option>
+            <option value="hard" selected>Hard</option>
+            <option value="deadly">Deadly</option>
+          </select>
+        </div>
+        <div>
+          <label>Runs per Map</label>
+          <select id="numSel" style="width:100px">
+            <option value="100">100</option>
+            <option value="500">500</option>
+            <option value="1000" selected>1000</option>
+          </select>
+        </div>
+        <div>
+          <label>&nbsp;</label>
+          <label class="hardcore-wrap" title="Monsters coordinate focus fire, stomp downed PCs, roll with advantage, and crit on 19-20">
+            <span class="hc-toggle">
+              <input type="checkbox" id="hardcoreChk" onchange="document.getElementById('hcLabel').classList.toggle('active',this.checked)">
+              <span class="hc-slider"></span>
+            </span>
+            <span>
+              <span class="hc-label" id="hcLabel">☠ Hardcore Mode</span>
+              <span class="hc-desc" style="display:block">Coordinated AI · stomp downed PCs · adv · 19-20 crit</span>
+            </span>
+          </label>
+        </div>
+        <div class="ml-a">
+          <label>&nbsp;</label>
+          <div><button class="btn-run" id="runBtn" onclick="startSim()">▶ Run Simulation</button></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section-title mb-16">🗺️ Encounter Maps</div>
+    <div class="map-tabs">
+      <button class="map-tab active" data-map="open-field" onclick="switchMap('open-field')">🌾 Open Field</button>
+      <button class="map-tab"        data-map="dungeon"    onclick="switchMap('dungeon')">💀 Dungeon</button>
+      <button class="map-tab"        data-map="forest"     onclick="switchMap('forest')">🌲 Forest</button>
+    </div>
+
+    <!-- Open Field -->
+    <div class="map-panel active card" id="map-open-field">
+      <div class="map-header">
+        <div><strong>Open Field</strong> <span class="txs tm" style="margin-left:6px">Humanoids</span></div>
+        <div class="flex gap-8">
+          <button class="btn btn-sm btn-secondary" onclick="autoFill('open-field')">⚡ Auto-fill</button>
+          <button class="btn btn-sm btn-secondary" onclick="toggleCustomForm('open-field')">+ Custom</button>
+          <button class="btn btn-sm btn-secondary" onclick="clearMap('open-field')">Clear</button>
+        </div>
+      </div>
+      <div class="terrain-badge">No cover. Ranged attacks unrestricted. CR budget: <span id="bgt-open-field" class="tgold bold">–</span> XP</div>
+      <div class="shape-row">
+        <span style="font-size:11px;color:var(--text2);white-space:nowrap">Shape:</span>
+        <span class="shape-chip active" id="sc-open-field-random"   onclick="setShape('open-field','random')">🎲 Random</span>
+        <span class="shape-chip"        id="sc-open-field-boss"     onclick="setShape('open-field','boss')">🐉 Boss+Minions</span>
+        <span class="shape-chip"        id="sc-open-field-elite"    onclick="setShape('open-field','elite')">⚔️ Elite Squad</span>
+        <span class="shape-chip"        id="sc-open-field-horde"    onclick="setShape('open-field','horde')">🌊 Horde</span>
+        <span class="shape-chip"        id="sc-open-field-ambush"   onclick="setShape('open-field','ambush')">🎯 Ambush</span>
+      </div>
+      <div class="seed-row" id="seed-row-open-field">
+        <span class="seed-label">🎯 Build around:</span>
+        <div class="seed-search-wrap" id="seed-input-open-field">
+          <input type="text" placeholder="Search any monster as anchor..." id="ssrch-open-field"
+            oninput="doSeedSearch('open-field',this.value)" onblur="closeSeedSearch('open-field')">
+          <div class="search-drop" id="ssdrop-open-field"></div>
+        </div>
+        <div class="seed-chip" id="seed-chip-open-field" style="display:none">
+          <span class="seed-chip-name" id="seed-name-open-field"></span>
+          <span class="seed-chip-cr" id="seed-cr-open-field"></span>
+          <button class="seed-chip-x" onclick="clearSeed('open-field')" title="Remove seed">✕</button>
+        </div>
+      </div>
+      <div class="flex gap-8 mb-16">
+        <div class="search-wrap">
+          <input type="text" placeholder="Search monsters to add..." id="srch-open-field"
+            oninput="doSearch('open-field',this.value)" onblur="closeSearch('open-field')">
+          <div class="search-drop" id="sdrop-open-field"></div>
+        </div>
+      </div>
+      <div class="custom-form" id="cform-open-field">
+        <div class="txs bold tm mb-16" style="margin-bottom:8px">Add Custom Monster</div>
+        <div class="frow" style="margin-bottom:8px">
+          <div><label>Name</label><input type="text" id="cn-open-field" placeholder="e.g. Veteran"></div>
+          <div><label>Type</label><input type="text" id="ct-open-field" placeholder="humanoid"></div>
+        </div>
+        <div class="custom-grid">
+          <div><label>CR</label><input type="text" id="ccr-open-field" placeholder="1" value="1"></div>
+          <div><label>HP</label><input type="number" id="chp-open-field" placeholder="52" value="52"></div>
+          <div><label>AC</label><input type="number" id="cac-open-field" placeholder="16" value="16"></div>
+          <div><label>Hit Bonus</label><input type="number" id="chit-open-field" placeholder="5" value="5"></div>
+          <div><label>Damage</label><input type="text" id="cdmg-open-field" placeholder="1d8+3" value="1d8+3"></div>
+        </div>
+        <div class="frow" style="margin-bottom:8px">
+          <div><label>Multi-attack</label><input type="number" id="cmul-open-field" min="1" max="5" value="1"></div>
+          <div><label>Count</label><input type="number" id="ccnt-open-field" min="1" max="10" value="1"></div>
+        </div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap">
+          <button class="btn btn-sm btn-primary" onclick="addCustomMonster('open-field')">Add Monster</button>
+          <button class="btn btn-sm btn-secondary" onclick="openStatBlockModal('open-field')" title="Paste a stat block from a PDF or D&D Beyond">📋 Parse Stat Block</button>
+        </div>
+      </div>
+      <div class="enc-list" id="enc-open-field"><div class="enc-empty">Click ⚡ Auto-fill, search above, or + Custom</div></div>
+      <div id="enc-flavor-open-field" style="display:none;font-size:12px;font-style:italic;color:var(--gold);border-left:3px solid var(--gold);padding:4px 8px;margin:6px 0;background:rgba(240,180,41,.07)"></div>
+      <div class="enc-footer">
+        <span>Total XP: <span id="xp-open-field" class="tgold bold">0</span></span>
+        <span>Budget: <span id="bgt2-open-field">–</span> XP · <span id="mc-open-field">0</span> monsters</span>
+      </div>
+      <div class="notes-row">
+        <div class="notes-label">📝 DM Notes</div>
+        <textarea id="notes-open-field" class="dm-notes" placeholder="Tactics, story hooks, terrain details, how to run this encounter..." oninput="saveNote('open-field',this.value)"></textarea>
+      </div>
+    </div>
+
+    <!-- Dungeon -->
+    <div class="map-panel card" id="map-dungeon">
+      <div class="map-header">
+        <div><strong>Dungeon Corridor</strong> <span class="txs tm" style="margin-left:6px">Undead &amp; Constructs</span></div>
+        <div class="flex gap-8">
+          <button class="btn btn-sm btn-secondary" onclick="autoFill('dungeon')">⚡ Auto-fill</button>
+          <button class="btn btn-sm btn-secondary" onclick="toggleCustomForm('dungeon')">+ Custom</button>
+          <button class="btn btn-sm btn-secondary" onclick="clearMap('dungeon')">Clear</button>
+        </div>
+      </div>
+      <div class="terrain-badge">Half cover (+2 AC all). Ranged attacks at disadvantage. CR budget: <span id="bgt-dungeon" class="tgold bold">–</span> XP</div>
+      <div class="shape-row">
+        <span style="font-size:11px;color:var(--text2);white-space:nowrap">Shape:</span>
+        <span class="shape-chip active" id="sc-dungeon-random"   onclick="setShape('dungeon','random')">🎲 Random</span>
+        <span class="shape-chip"        id="sc-dungeon-boss"     onclick="setShape('dungeon','boss')">🐉 Boss+Minions</span>
+        <span class="shape-chip"        id="sc-dungeon-elite"    onclick="setShape('dungeon','elite')">⚔️ Elite Squad</span>
+        <span class="shape-chip"        id="sc-dungeon-horde"    onclick="setShape('dungeon','horde')">🌊 Horde</span>
+        <span class="shape-chip"        id="sc-dungeon-ambush"   onclick="setShape('dungeon','ambush')">🎯 Ambush</span>
+      </div>
+      <div class="seed-row" id="seed-row-dungeon">
+        <span class="seed-label">🎯 Build around:</span>
+        <div class="seed-search-wrap" id="seed-input-dungeon">
+          <input type="text" placeholder="Search any monster as anchor..." id="ssrch-dungeon"
+            oninput="doSeedSearch('dungeon',this.value)" onblur="closeSeedSearch('dungeon')">
+          <div class="search-drop" id="ssdrop-dungeon"></div>
+        </div>
+        <div class="seed-chip" id="seed-chip-dungeon" style="display:none">
+          <span class="seed-chip-name" id="seed-name-dungeon"></span>
+          <span class="seed-chip-cr" id="seed-cr-dungeon"></span>
+          <button class="seed-chip-x" onclick="clearSeed('dungeon')" title="Remove seed">✕</button>
+        </div>
+      </div>
+      <div class="flex gap-8 mb-16">
+        <div class="search-wrap">
+          <input type="text" placeholder="Search monsters to add..." id="srch-dungeon"
+            oninput="doSearch('dungeon',this.value)" onblur="closeSearch('dungeon')">
+          <div class="search-drop" id="sdrop-dungeon"></div>
+        </div>
+      </div>
+      <div class="custom-form" id="cform-dungeon">
+        <div class="txs bold tm" style="margin-bottom:8px">Add Custom Monster</div>
+        <div class="frow" style="margin-bottom:8px">
+          <div><label>Name</label><input type="text" id="cn-dungeon" placeholder="e.g. Wight"></div>
+          <div><label>Type</label><input type="text" id="ct-dungeon" placeholder="undead"></div>
+        </div>
+        <div class="custom-grid">
+          <div><label>CR</label><input type="text" id="ccr-dungeon" value="3"></div>
+          <div><label>HP</label><input type="number" id="chp-dungeon" value="45"></div>
+          <div><label>AC</label><input type="number" id="cac-dungeon" value="14"></div>
+          <div><label>Hit Bonus</label><input type="number" id="chit-dungeon" value="4"></div>
+          <div><label>Damage</label><input type="text" id="cdmg-dungeon" value="1d6+2"></div>
+        </div>
+        <div class="frow" style="margin-bottom:8px">
+          <div><label>Multi-attack</label><input type="number" id="cmul-dungeon" min="1" max="5" value="1"></div>
+          <div><label>Count</label><input type="number" id="ccnt-dungeon" min="1" max="10" value="1"></div>
+        </div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap">
+          <button class="btn btn-sm btn-primary" onclick="addCustomMonster('dungeon')">Add Monster</button>
+          <button class="btn btn-sm btn-secondary" onclick="openStatBlockModal('dungeon')" title="Paste a stat block from a PDF or D&D Beyond">📋 Parse Stat Block</button>
+        </div>
+      </div>
+      <div class="enc-list" id="enc-dungeon"><div class="enc-empty">Click ⚡ Auto-fill, search above, or + Custom</div></div>
+      <div id="enc-flavor-dungeon" style="display:none;font-size:12px;font-style:italic;color:var(--gold);border-left:3px solid var(--gold);padding:4px 8px;margin:6px 0;background:rgba(240,180,41,.07)"></div>
+      <div class="enc-footer">
+        <span>Total XP: <span id="xp-dungeon" class="tgold bold">0</span></span>
+        <span>Budget: <span id="bgt2-dungeon">–</span> XP · <span id="mc-dungeon">0</span> monsters</span>
+      </div>
+      <div class="notes-row">
+        <div class="notes-label">📝 DM Notes</div>
+        <textarea id="notes-dungeon" class="dm-notes" placeholder="Tactics, story hooks, terrain details, how to run this encounter..." oninput="saveNote('dungeon',this.value)"></textarea>
+      </div>
+    </div>
+
+    <!-- Forest -->
+    <div class="map-panel card" id="map-forest">
+      <div class="map-header">
+        <div><strong>Forest</strong> <span class="txs tm" style="margin-left:6px">Beasts &amp; Fey</span></div>
+        <div class="flex gap-8">
+          <button class="btn btn-sm btn-secondary" onclick="autoFill('forest')">⚡ Auto-fill</button>
+          <button class="btn btn-sm btn-secondary" onclick="toggleCustomForm('forest')">+ Custom</button>
+          <button class="btn btn-sm btn-secondary" onclick="clearMap('forest')">Clear</button>
+        </div>
+      </div>
+      <div class="terrain-badge">50% chance 3/4 cover (+5 AC). Difficult terrain (monsters −1 attack per 4 turns). CR budget: <span id="bgt-forest" class="tgold bold">–</span> XP</div>
+      <div class="shape-row">
+        <span style="font-size:11px;color:var(--text2);white-space:nowrap">Shape:</span>
+        <span class="shape-chip active" id="sc-forest-random"   onclick="setShape('forest','random')">🎲 Random</span>
+        <span class="shape-chip"        id="sc-forest-boss"     onclick="setShape('forest','boss')">🐉 Boss+Minions</span>
+        <span class="shape-chip"        id="sc-forest-elite"    onclick="setShape('forest','elite')">⚔️ Elite Squad</span>
+        <span class="shape-chip"        id="sc-forest-horde"    onclick="setShape('forest','horde')">🌊 Horde</span>
+        <span class="shape-chip"        id="sc-forest-ambush"   onclick="setShape('forest','ambush')">🎯 Ambush</span>
+      </div>
+      <div class="seed-row" id="seed-row-forest">
+        <span class="seed-label">🎯 Build around:</span>
+        <div class="seed-search-wrap" id="seed-input-forest">
+          <input type="text" placeholder="Search any monster as anchor..." id="ssrch-forest"
+            oninput="doSeedSearch('forest',this.value)" onblur="closeSeedSearch('forest')">
+          <div class="search-drop" id="ssdrop-forest"></div>
+        </div>
+        <div class="seed-chip" id="seed-chip-forest" style="display:none">
+          <span class="seed-chip-name" id="seed-name-forest"></span>
+          <span class="seed-chip-cr" id="seed-cr-forest"></span>
+          <button class="seed-chip-x" onclick="clearSeed('forest')" title="Remove seed">✕</button>
+        </div>
+      </div>
+      <div class="flex gap-8 mb-16">
+        <div class="search-wrap">
+          <input type="text" placeholder="Search monsters to add..." id="srch-forest"
+            oninput="doSearch('forest',this.value)" onblur="closeSearch('forest')">
+          <div class="search-drop" id="sdrop-forest"></div>
+        </div>
+      </div>
+      <div class="custom-form" id="cform-forest">
+        <div class="txs bold tm" style="margin-bottom:8px">Add Custom Monster</div>
+        <div class="frow" style="margin-bottom:8px">
+          <div><label>Name</label><input type="text" id="cn-forest" placeholder="e.g. Owlbear"></div>
+          <div><label>Type</label><input type="text" id="ct-forest" placeholder="beast"></div>
+        </div>
+        <div class="custom-grid">
+          <div><label>CR</label><input type="text" id="ccr-forest" value="3"></div>
+          <div><label>HP</label><input type="number" id="chp-forest" value="59"></div>
+          <div><label>AC</label><input type="number" id="cac-forest" value="13"></div>
+          <div><label>Hit Bonus</label><input type="number" id="chit-forest" value="7"></div>
+          <div><label>Damage</label><input type="text" id="cdmg-forest" value="2d8+5"></div>
+        </div>
+        <div class="frow" style="margin-bottom:8px">
+          <div><label>Multi-attack</label><input type="number" id="cmul-forest" min="1" max="5" value="2"></div>
+          <div><label>Count</label><input type="number" id="ccnt-forest" min="1" max="10" value="1"></div>
+        </div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap">
+          <button class="btn btn-sm btn-primary" onclick="addCustomMonster('forest')">Add Monster</button>
+          <button class="btn btn-sm btn-secondary" onclick="openStatBlockModal('forest')" title="Paste a stat block from a PDF or D&D Beyond">📋 Parse Stat Block</button>
+        </div>
+      </div>
+      <div class="enc-list" id="enc-forest"><div class="enc-empty">Click ⚡ Auto-fill, search above, or + Custom</div></div>
+      <div id="enc-flavor-forest" style="display:none;font-size:12px;font-style:italic;color:var(--gold);border-left:3px solid var(--gold);padding:4px 8px;margin:6px 0;background:rgba(240,180,41,.07)"></div>
+      <div class="enc-footer">
+        <span>Total XP: <span id="xp-forest" class="tgold bold">0</span></span>
+        <span>Budget: <span id="bgt2-forest">–</span> XP · <span id="mc-forest">0</span> monsters</span>
+      </div>
+      <div class="notes-row">
+        <div class="notes-label">📝 DM Notes</div>
+        <textarea id="notes-forest" class="dm-notes" placeholder="Tactics, story hooks, terrain details, how to run this encounter..." oninput="saveNote('forest',this.value)"></textarea>
+      </div>
+    </div>
+
+    <!-- Progress -->
+    <div id="progSection" style="display:none;margin-top:16px">
+      <div class="card">
+        <div class="flex-c gap-12">
+          <div class="spinner"></div>
+          <div>
+            <div class="bold">Running simulation...</div>
+            <div class="txs tm" id="progLabel" style="margin-top:3px">Preparing...</div>
+          </div>
+        </div>
+        <div class="progress-wrap" style="margin-top:8px"><div class="progress-bar" id="progBar"></div></div>
+      </div>
+    </div>
+
+  </div><!-- /setup -->
+
+  <!-- ========== RESULTS ========== -->
+  <div class="tab-panel" id="tab-results">
+    <div id="noResults" class="card" style="text-align:center;padding:48px;color:var(--text2)">
+      <div style="font-size:40px;margin-bottom:12px">🎲</div>
+      <div style="font-size:16px;font-weight:600;margin-bottom:6px">No results yet</div>
+      <div>Run a simulation from the Setup tab.</div>
+    </div>
+    <div id="resultsContent" style="display:none">
+      <div class="section-title mb-16" style="justify-content:space-between;flex-wrap:wrap;gap:8px">
+        <span>📊 Overall Results</span>
+        <span id="hardcoreBadge" style="display:none;font-size:11px;padding:3px 10px;border-radius:4px;background:rgba(224,92,92,.15);border:1px solid var(--red);color:var(--red);font-weight:600">☠ HARDCORE MODE</span>
+      </div>
+      <div class="summary-cards" id="sumCards"></div>
+      <div class="charts-grid">
+        <div class="chart-card"><div class="chart-title">Win Rate by Map</div><canvas id="cWin"></canvas></div>
+        <div class="chart-card"><div class="chart-title">PC Survival Rate by Map</div><canvas id="cSurv"></canvas></div>
+        <div class="chart-card"><div class="chart-title">Average Rounds by Map</div><canvas id="cRnd"></canvas></div>
+        <div class="chart-card"><div class="chart-title">Avg HP Remaining (survivors)</div><canvas id="cHP"></canvas></div>
+      </div>
+      <div class="section-title mt-24 mb-16">🗺️ Per-Map Breakdown</div>
+      <div class="tbl-wrap"><table><thead><tr><th>Map</th><th>Win Rate</th><th>TPK Rate</th><th>Avg Rounds</th><th>Avg Monsters Killed</th><th>Assessment</th></tr></thead><tbody id="mapTbl"></tbody></table></div>
+      <div class="section-title mt-24 mb-16">👤 Per-Character Performance</div>
+      <div class="tbl-wrap"><table><thead><tr><th>Character</th><th>Class</th><th>Overall Survival</th><th>Deaths</th><th>Avg HP Remaining</th><th>Times Downed</th><th>Resources Used</th></tr></thead><tbody id="pcTbl"></tbody></table></div>
+      <div class="flex gap-8 mt-16">
+        <button class="btn btn-secondary" onclick="exportJSON()">⬇ Export JSON</button>
+        <button class="btn btn-secondary" onclick="exportCSV()">⬇ Export CSV</button>
+      </div>
+
+      <!-- COMBAT LOG -->
+      <div id="combatLogSection" style="margin-top:28px">
+        <div class="section-title mb-16" style="justify-content:space-between;cursor:pointer" onclick="toggleCombatLog()">
+          <span>📜 Combat Replay Log <span style="font-size:12px;color:var(--text2)">(representative single run)</span></span>
+          <span id="combatLogArrow" style="font-size:18px;transition:transform .2s">▶</span>
+        </div>
+        <div id="combatLogBody" style="display:none">
+          <div style="display:flex;gap:8px;margin-bottom:12px" id="combatLogTabs"></div>
+          <div id="combatLogContent"></div>
+        </div>
+      </div>
+
+      <!-- MONSTER COMPENDIUM -->
+      <div id="monCompendium" style="margin-top:28px">
+        <div class="section-title mb-16" style="justify-content:space-between;flex-wrap:wrap;gap:8px">
+          <span>📖 Monster Compendium</span>
+          <button class="btn btn-sm btn-secondary" onclick="printStatBlocks()" title="Print all stat blocks">🖨 Print Stat Blocks</button>
+        </div>
+        <div id="monCompendiumCards" style="display:flex;flex-direction:column;gap:16px"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========== ABOUT ========== -->
+  <div class="tab-panel" id="tab-about">
+    <div class="about-wrap">
+      <div class="card">
+        <h2>D&D 5e Battle Simulator</h2>
+        <p>Runs 1000 Monte Carlo combats per map to predict how your party fares. Single HTML file — works offline after first load, shareable via email or Discord.</p>
+        <h2>Monster Management</h2>
+        <ul>
+          <li><strong>⚡ Auto-fill</strong> — Populates encounter with monsters matching the terrain type at current difficulty XP budget</li>
+          <li><strong>Search box</strong> — Type any monster name to search the full 5etools bestiary, click to add</li>
+          <li><strong>+ Custom</strong> — Opens a form to manually enter any monster with custom stats (use this if search doesn't find what you want)</li>
+          <li><strong>×</strong> buttons — Remove individual monsters. <strong>−/+</strong> change count. <strong>Clear</strong> wipes the whole map.</li>
+          <li>Any monster from 5etools MM + XMM will appear in search once bestiary loads</li>
+        </ul>
+        <h2>Terrain Rules</h2>
+        <ul>
+          <li><strong>Open Field:</strong> No modifiers</li>
+          <li><strong>Dungeon Corridor:</strong> All combatants +2 AC (half cover). All ranged attacks at disadvantage (2d20 take lower).</li>
+          <li><strong>Forest:</strong> Each attack has 50% chance of +5 AC cover. Monsters in difficult terrain lose roughly 25% of extra attacks.</li>
+        </ul>
+        <h2>Combat Rules</h2>
+        <ul>
+          <li>Standard initiative (d20 + DEX mod). Natural 20 = double damage dice (critical hit).</li>
+          <li>Death saves at 0 HP: 3 successes = stable, 3 failures = dead. Nat 1 = 2 failures. Nat 20 = revive at 1 HP.</li>
+          <li>Monster AI: focus fire on highest-threat PC (casters first), coordinate all monsters on same target.</li>
+          <li>Max 20 rounds; surviving conscious PCs = win.</li>
+        </ul>
+        <h2>PC JSON Schema</h2>
+        <pre>{
+  "name": "Aria",
+  "class": "Fighter",
+  "level": 5,
+  "hp_max": 52,
+  "ac": 18,
+  "initiative_bonus": 1,
+  "prof_bonus": 3,
+  "attacks": [
+    { "name": "Longsword", "hit_bonus": 7, "damage": "1d8+4", "multi": 2 }
+  ],
+  "features": [
+    { "name": "Action Surge", "uses": 1 },
+    { "name": "Second Wind", "uses": 1, "heal": "1d10+5" }
+  ],
+  "spell_slots": { "1": 4, "2": 3, "3": 2 },
+  "spell_save_dc": 14,
+  "saving_throw_profs": ["str", "con"]
+}</pre>
+        <h2>Monster Data</h2>
+        <p>Loaded from the <a href="https://github.com/5etools-mirror-3/5etools-src" target="_blank">5etools GitHub repo</a> (MM + XMM). Cached in localStorage — works offline after first load.</p>
+      </div>
+    </div>
+  </div>
+</div><!-- /container -->
+
+<script>
+'use strict';
+// ============================================================
+// CONSTANTS
+// ============================================================
+const CR_XP = {0:10,0.125:25,0.25:50,0.5:100,1:200,2:450,3:700,4:1100,5:1800,6:2300,7:2900,8:3900,9:5000,10:5900,11:7200,12:8400,13:10000,14:11500,15:13000,16:15000,17:18000,18:20000,19:22000,20:25000,21:33000,22:41000,23:50000,24:62000,30:155000};
+const XP_THR = {
+  1:{easy:25,medium:50,hard:75,deadly:100},2:{easy:50,medium:100,hard:150,deadly:200},
+  3:{easy:75,medium:150,hard:225,deadly:400},4:{easy:125,medium:250,hard:375,deadly:500},
+  5:{easy:250,medium:500,hard:750,deadly:1100},6:{easy:300,medium:600,hard:900,deadly:1400},
+  7:{easy:350,medium:750,hard:1100,deadly:1700},8:{easy:450,medium:900,hard:1400,deadly:2100},
+  9:{easy:550,medium:1100,hard:1600,deadly:2400},10:{easy:600,medium:1200,hard:1900,deadly:2800},
+  11:{easy:800,medium:1600,hard:2400,deadly:3600},12:{easy:1000,medium:2000,hard:3000,deadly:4500},
+  13:{easy:1100,medium:2200,hard:3300,deadly:5100},14:{easy:1250,medium:2500,hard:3800,deadly:5700},
+  15:{easy:1400,medium:2800,hard:4300,deadly:6400},16:{easy:1600,medium:3200,hard:4800,deadly:7200},
+  17:{easy:2000,medium:3900,hard:5900,deadly:8800},18:{easy:2100,medium:4200,hard:6300,deadly:9500},
+  19:{easy:2400,medium:4900,hard:7300,deadly:10900},20:{easy:2800,medium:5700,hard:8500,deadly:12700}
+};
+const MAP_CFG = {
+  'open-field':{name:'Open Field',types:['humanoid'],crMin:.25,crMax:7,coverBonus:0,rangedDisadv:false,coverChance:0,coverAmt:0,diffTerrain:false},
+  'dungeon':   {name:'Dungeon Corridor',types:['undead','construct','aberration'],crMin:.25,crMax:7,coverBonus:2,rangedDisadv:true,coverChance:0,coverAmt:0,diffTerrain:false},
+  'forest':    {name:'Forest',types:['beast','fey','plant'],crMin:.25,crMax:6,coverBonus:0,rangedDisadv:false,coverChance:.5,coverAmt:5,diffTerrain:true}
+};
+const MAP_KEYS  = ['open-field','dungeon','forest'];
+const MAP_NAMES = ['Open Field','Dungeon','Forest'];
+
+// ============================================================
+// PC PRESETS
+// ============================================================
+const PC_PRESETS = [
+  {name:'Aria',class:'Fighter',level:5,hp_max:52,ac:18,initiative_bonus:1,prof_bonus:3,
+   attacks:[{name:'Longsword',hit_bonus:7,damage:'1d8+4',multi:2}],
+   features:[{name:'Action Surge',uses:1},{name:'Second Wind',uses:1,heal:'1d10+5'}],
+   spell_slots:{},spell_save_dc:null,saving_throw_profs:['str','con']},
+  {name:'Brynn',class:'Cleric',level:5,hp_max:38,ac:18,initiative_bonus:0,prof_bonus:3,
+   attacks:[{name:'Mace',hit_bonus:5,damage:'1d6+2',multi:1}],
+   features:[{name:'Channel Divinity',uses:1},{name:'Spiritual Weapon',uses:1,bonusAtk:true,hit_bonus:6,damage:'3d8+3',spellLevel:2}],
+   spell_slots:{'1':4,'2':3,'3':2},spell_save_dc:14,saving_throw_profs:['wis','cha']},
+  {name:'Kael',class:'Rogue',level:5,hp_max:33,ac:16,initiative_bonus:4,prof_bonus:3,
+   attacks:[{name:'Shortsword',hit_bonus:7,damage:'1d6+4',multi:1,sneak_attack:'3d6'}],
+   features:[{name:'Uncanny Dodge',uses:1},{name:'Cunning Action',uses:1}],
+   spell_slots:{},spell_save_dc:null,saving_throw_profs:['dex','int']},
+  {name:'Sylara',class:'Wizard',level:5,hp_max:32,ac:15,initiative_bonus:2,prof_bonus:3,
+   attacks:[{name:'Fire Bolt',hit_bonus:7,damage:'2d10',multi:1}],
+   features:[{name:'Fireball',uses:3,spellLevel:3,damage:'8d6',saveDC:15,aoe:true}],
+   spell_slots:{'1':4,'2':3,'3':2},spell_save_dc:15,saving_throw_profs:['int','wis']}
+];
+const CLASS_PRESETS = {
+  Barbarian:{level:5,hp_max:63,ac:15,initiative_bonus:2,prof_bonus:3,attacks:[{name:'Greataxe',hit_bonus:8,damage:'1d12+5',multi:2}],features:[{name:'Rage',uses:3},{name:'Reckless Attack',uses:99}],spell_slots:{},spell_save_dc:null,saving_throw_profs:['str','con']},
+  Bard:{level:5,hp_max:35,ac:14,initiative_bonus:2,prof_bonus:3,attacks:[{name:'Rapier',hit_bonus:6,damage:'1d8+3',multi:1}],features:[{name:'Bardic Inspiration',uses:4}],spell_slots:{'1':4,'2':3,'3':2},spell_save_dc:14,saving_throw_profs:['dex','cha']},
+  Cleric:{level:5,hp_max:38,ac:18,initiative_bonus:0,prof_bonus:3,attacks:[{name:'Mace',hit_bonus:5,damage:'1d6+2',multi:1}],features:[{name:'Channel Divinity',uses:1},{name:'Spiritual Weapon',uses:1,bonusAtk:true,hit_bonus:6,damage:'3d8+3',spellLevel:2}],spell_slots:{'1':4,'2':3,'3':2},spell_save_dc:14,saving_throw_profs:['wis','cha']},
+  Druid:{level:5,hp_max:35,ac:14,initiative_bonus:1,prof_bonus:3,attacks:[{name:'Shillelagh',hit_bonus:6,damage:'1d8+3',multi:1}],features:[{name:'Wild Shape',uses:2}],spell_slots:{'1':4,'2':3,'3':2},spell_save_dc:14,saving_throw_profs:['int','wis']},
+  Fighter:{level:5,hp_max:52,ac:18,initiative_bonus:1,prof_bonus:3,attacks:[{name:'Longsword',hit_bonus:7,damage:'1d8+4',multi:2}],features:[{name:'Action Surge',uses:1},{name:'Second Wind',uses:1,heal:'1d10+5'}],spell_slots:{},spell_save_dc:null,saving_throw_profs:['str','con']},
+  Monk:{level:5,hp_max:38,ac:16,initiative_bonus:4,prof_bonus:3,attacks:[{name:'Unarmed Strike',hit_bonus:7,damage:'1d6+4',multi:2}],features:[{name:'Stunning Strike',uses:5}],spell_slots:{},spell_save_dc:15,saving_throw_profs:['str','dex']},
+  Paladin:{level:5,hp_max:48,ac:20,initiative_bonus:0,prof_bonus:3,attacks:[{name:'Longsword',hit_bonus:7,damage:'1d8+4',multi:2}],features:[{name:'Divine Smite',uses:3,smite:true},{name:'Lay on Hands',uses:5}],spell_slots:{'1':4,'2':2},spell_save_dc:14,saving_throw_profs:['wis','cha']},
+  Ranger:{level:5,hp_max:42,ac:16,initiative_bonus:3,prof_bonus:3,attacks:[{name:'Longbow',hit_bonus:7,damage:'1d8+4',multi:2,isRanged:true}],features:[{name:"Hunter's Mark",uses:3,damage:'1d6'}],spell_slots:{'1':4,'2':2},spell_save_dc:14,saving_throw_profs:['str','dex']},
+  Rogue:{level:5,hp_max:33,ac:16,initiative_bonus:4,prof_bonus:3,attacks:[{name:'Shortsword',hit_bonus:7,damage:'1d6+4',multi:1,sneak_attack:'3d6'}],features:[{name:'Uncanny Dodge',uses:1},{name:'Cunning Action',uses:1}],spell_slots:{},spell_save_dc:null,saving_throw_profs:['dex','int']},
+  Sorcerer:{level:5,hp_max:30,ac:13,initiative_bonus:2,prof_bonus:3,attacks:[{name:'Fire Bolt',hit_bonus:7,damage:'2d10',multi:1}],features:[{name:'Fireball',uses:3,spellLevel:3,damage:'8d6',saveDC:14,aoe:true},{name:'Metamagic',uses:3}],spell_slots:{'1':4,'2':3,'3':2},spell_save_dc:14,saving_throw_profs:['con','cha']},
+  Warlock:{level:5,hp_max:32,ac:13,initiative_bonus:2,prof_bonus:3,attacks:[{name:'Eldritch Blast',hit_bonus:6,damage:'1d10+3',multi:2}],features:[{name:'Armor of Agathys',uses:1}],spell_slots:{'3':2},spell_save_dc:14,saving_throw_profs:['wis','cha']},
+  Wizard:{level:5,hp_max:32,ac:15,initiative_bonus:2,prof_bonus:3,attacks:[{name:'Fire Bolt',hit_bonus:7,damage:'2d10',multi:1}],features:[{name:'Fireball',uses:3,spellLevel:3,damage:'8d6',saveDC:15,aoe:true}],spell_slots:{'1':4,'2':3,'3':2},spell_save_dc:15,saving_throw_profs:['int','wis']}
+};
+
+// ============================================================
+// STATE
+// ============================================================
+let allMonsters = [];   // parsed from 5etools
+let monstersReady = false;
+let party = PC_PRESETS.map(deepClonePC);
+// Encounter format: [{name, count, data:{name,cr,hp_max,ac,dex,initiative_bonus,attacks:[{name,hit_bonus,damage,isRanged}],multiCount,type,xp}}]
+let encounters = {'open-field':[],'dungeon':[],'forest':[]};
+const encounterNotes = {'open-field':'','dungeon':'','forest':''};
+let lastResults = null;
+let charts = {};
+
+function deepClonePC(pc) {
+  return {...pc, attacks:pc.attacks.map(a=>({...a})), features:pc.features.map(f=>({...f})), spell_slots:{...(pc.spell_slots||{})}};
+}
+
+// ============================================================
+// DICE
+// ============================================================
+const r20 = () => (Math.random()*20|0)+1;
+function rollDice(f) {
+  if (!f && f!==0) return 0;
+  const s = String(f).trim();
+  if (!s||s==='0') return 0;
+  const m = s.match(/^(\d*)d(\d+)([+-]\d+)?$/i);
+  if (!m) { const n=parseInt(s); return isNaN(n)?0:Math.max(0,n); }
+  const cnt=parseInt(m[1])||1, sides=parseInt(m[2]), mod=parseInt(m[3]||'0');
+  if (sides===0) return Math.max(0,Math.abs(mod));
+  let t=mod; for(let i=0;i<cnt;i++) t+=(Math.random()*sides|0)+1;
+  return Math.max(0,t);
+}
+function crLabel(cr) { return cr===.125?'1/8':cr===.25?'1/4':cr===.5?'1/2':String(cr); }
+function pmod(s) { return Math.floor(((s||10)-10)/2); }
+
+// ============================================================
+// BESTIARY
+// ============================================================
+const CACHE_KEY = 'dnd5e_bestiary_v8';
+const BSRC = [
+  'https://raw.githubusercontent.com/5etools-mirror-3/5etools-src/master/data/bestiary/bestiary-mm.json',
+  'https://raw.githubusercontent.com/5etools-mirror-3/5etools-src/master/data/bestiary/bestiary-xmm.json'
+];
+
+function parseCR(cr) {
+  if (cr==null) return 0;
+  if (typeof cr==='object') cr=cr.cr||'0';
+  if (cr==='1/8') return .125; if (cr==='1/4') return .25; if (cr==='1/2') return .5;
+  return parseFloat(cr)||0;
+}
+function parseAC(ac) {
+  if (!ac||!ac.length) return 10;
+  const f=ac[0]; return typeof f==='number'?f:(f&&f.ac)||10;
+}
+function flatE(e) {
+  if (!e) return '';
+  if (typeof e==='string') return e;
+  if (Array.isArray(e)) return e.map(flatE).join(' ');
+  if (typeof e==='object') {
+    if (e.entries) return flatE(e.entries);
+    if (e.entry)   return flatE(e.entry);
+    if (e.items)   return flatE(e.items);
+    if (e.name&&e.entries) return e.name+': '+flatE(e.entries);
+  }
+  return '';
+}
+// Strip 5etools inline tags for display: {@hit 5} → +5, {@damage 1d8+3} → 1d8+3, etc.
+function flatEClean(e) {
+  return flatE(e)
+    .replace(/\{@dc\s+(\d+)[^}]*\}/gi,'DC $1')
+    .replace(/\{@hit\s+([+-]?\d+)[^}]*\}/gi,(m,n)=>(+n>=0?'+':'')+n)
+    .replace(/\{@\w+\s+([^|}]+)(?:\|[^}]*)?\}/g,'$1')
+    .replace(/\s+/g,' ').trim();
+}
+// Flatten 5etools damage/resist/immune arrays (can be strings or objects)
+function flatDmgList(arr) {
+  if (!arr||!arr.length) return [];
+  const out=[];
+  for (const item of arr) {
+    if (typeof item==='string') out.push(item);
+    else if (item.special) out.push(item.special);
+    else if (item.resist) out.push(...item.resist.map(x=>typeof x==='string'?x:(x.special||'')));
+    else if (item.immune) out.push(...item.immune.map(x=>typeof x==='string'?x:(x.special||'')));
+    else if (item.vulnerable) out.push(...item.vulnerable.map(x=>typeof x==='string'?x:(x.special||'')));
+  }
+  return out.filter(Boolean);
+}
+const SIZE_LABEL={T:'Tiny',S:'Small',M:'Medium',L:'Large',H:'Huge',G:'Gargantuan'};
+const ALIGN_MAP={L:'Lawful',C:'Chaotic',N:'Neutral',NX:'Neutral',NY:'Neutral',G:'Good',E:'Evil',U:'Unaligned',A:'Any'};
+function alignLabel(arr) {
+  if (!arr||!arr.length) return 'Unaligned';
+  if (arr[0]==='U') return 'Unaligned';
+  if (arr[0]==='A') return 'Any Alignment';
+  const parts=arr.map(a=>ALIGN_MAP[a]||'').filter(Boolean);
+  return [...new Set(parts)].join(' ')||'Unaligned';
+}
+function speedLabel(sp) {
+  if (!sp) return '30 ft.';
+  if (typeof sp==='number') return sp+' ft.';
+  if (typeof sp==='object'&&!Array.isArray(sp)) {
+    return Object.entries(sp).filter(([,v])=>v).map(([k,v])=>{
+      const val=typeof v==='object'?v.number:v;
+      return k==='walk'?val+' ft.':k+' '+val+' ft.';
+    }).join(', ');
+  }
+  return '30 ft.';
+}
+function inferRole(raw, attacks, multi) {
+  const cr=parseCR(raw.cr);
+  const hp=(raw.hp&&raw.hp.average)?raw.hp.average:cr*12+5;
+  const ac=parseAC(raw.ac);
+  const hasRanged=attacks.some(a=>a.isRanged);
+  const traitNames=(raw.trait||[]).map(t=>(t.name||'').toLowerCase());
+  const hasCaster=traitNames.some(t=>/spellcast|innate spell/i.test(t));
+  if (hasCaster) return 'caster';
+  if (hasRanged) return 'ranged';
+  if (multi>=3||(cr>=3&&hp>=cr*14)) return 'brute';
+  if (ac>=17) return 'defender';
+  if (hp<=cr*6+5&&cr<=1) return 'minion';
+  return 'skirmisher';
+}
+function parseMonster(raw) {
+  try {
+    const name=raw.name||'Unknown';
+    const cr=parseCR(raw.cr);
+    const hp=(raw.hp&&raw.hp.average)?raw.hp.average:Math.max(1,Math.round(cr*12+5));
+    const ac=parseAC(raw.ac);
+    const dex=raw.dex||10;
+    let type='';
+    if (raw.type) type=(typeof raw.type==='string'?raw.type:(raw.type.type||'')).toLowerCase();
+    const attacks=[]; let multi=1;
+    for (const a of (raw.action||[])) {
+      if (!a||!a.name) continue;
+      const txt=flatE(a.entries||[]);
+      if (a.name.toLowerCase().startsWith('multiattack')) {
+        const nm={one:1,two:2,three:3,four:4,five:5};
+        const rx=txt.match(/(?:makes?|can make)\s+(\w+)(?:\s+or\s+\w+)?\s+(?:attacks?|weapon|melee)/i);
+        if (rx) multi=nm[rx[1].toLowerCase()]||parseInt(rx[1])||2;
+        else if (/twice/i.test(txt)) multi=2;
+        else if (/three times/i.test(txt)) multi=3;
+        else multi=2;
+        continue;
+      }
+      const hm=txt.match(/\{@hit\s+([+-]?\d+)\}/);
+      const dm=[...txt.matchAll(/\{@damage\s+([^}]+)\}/g)];
+      if (!hm||!dm.length) continue;
+      const at=txt.match(/\{@atk\s+([^}]+)\}/);
+      const rng=at&&at[1].includes('rw')&&!at[1].includes('mw');
+      const dmgTypeRx=/(slashing|piercing|bludgeoning|fire|cold|lightning|thunder|acid|poison|necrotic|radiant|psychic|force)/i;
+      const dtm=txt.match(dmgTypeRx);
+      attacks.push({name:a.name,hit_bonus:parseInt(hm[1]),damage:dm[0][1].trim(),isRanged:!!rng,dmgType:dtm?dtm[1].toLowerCase():undefined});
+    }
+    if (!attacks.length) {
+      const hb=Math.max(2,Math.round(cr*.7)+2);
+      const die=cr<1?'1d4':cr<3?'1d6':cr<6?'1d8':cr<10?'2d6':'2d8';
+      const mod=Math.max(0,Math.round(cr/2));
+      attacks.push({name:'Attack',hit_bonus:hb,damage:die+(mod>0?'+'+mod:''),isRanged:false});
+    }
+    // Breath weapon detection (fire breath, cold breath, etc.)
+    let breathWeapon=null;
+    for (const a of (raw.action||[])) {
+      if (!a||!a.name||!a.name.toLowerCase().includes('breath')) continue;
+      const txt=flatE(a.entries||[]);
+      const dcm=txt.match(/DC\s*(\d+)/i);
+      const dmgm=txt.match(/(\d+d\d+(?:\+\d+)?)\s*(fire|cold|lightning|acid|poison|necrotic|radiant|thunder|force)/i);
+      if (dcm&&dmgm) { breathWeapon={name:a.name,damage:dmgm[1],dmgType:dmgm[2].toLowerCase(),dc:parseInt(dcm[1])}; break; }
+    }
+    const legendaryActionCount=(raw.legendary||[]).length>0?3:0;
+    const xp=CR_XP[cr]!==undefined?CR_XP[cr]:Math.round(cr*200);
+    const role=inferRole(raw,attacks,multi);
+    return {
+      name,cr,hp_max:hp,ac,dex,initiative_bonus:pmod(dex),attacks,multiCount:multi,type,xp,role,
+      breathWeapon,legendaryActionCount,
+      // Full stat block fields (display only)
+      str:raw.str||10, con:raw.con||10, int:raw.int||10, wis:raw.wis||10, cha:raw.cha||10,
+      saves:raw.save||{}, skills:raw.skill||{},
+      resistances:flatDmgList(raw.resist), immunities:flatDmgList(raw.immune),
+      conditionImmunes:Array.isArray(raw.conditionImmune)?raw.conditionImmune.map(x=>typeof x==='string'?x:(x.conditionImmune||x.special||'')).filter(Boolean):[],
+      senses:raw.senses||[], languages:raw.languages||[],
+      speed:raw.speed||{walk:30}, size:(raw.size||['M'])[0], alignment:raw.alignment||[],
+      traits:(raw.trait||[]).map(t=>({name:t.name||'',text:flatEClean(t.entries||[])})),
+      allActions:(raw.action||[]).map(a=>({name:a.name||'',text:flatEClean(a.entries||[])})),
+      reactions:(raw.reaction||[]).map(r=>({name:r.name||'',text:flatEClean(r.entries||[])})),
+      legendaryActions:(raw.legendary||[]).map(l=>({name:l.name||'',text:flatEClean(l.entries||[])})),
+    };
+  } catch(e) { return null; }
+}
+
+function fallbackMonsters() {
+  return [
+    {name:'Goblin',cr:.25,hp_max:7,ac:15,dex:14,initiative_bonus:2,attacks:[{name:'Scimitar',hit_bonus:4,damage:'1d6+2',isRanged:false}],multiCount:1,type:'humanoid',xp:50},
+    {name:'Orc',cr:.5,hp_max:15,ac:13,dex:12,initiative_bonus:1,attacks:[{name:'Greataxe',hit_bonus:5,damage:'1d12+3',isRanged:false}],multiCount:1,type:'humanoid',xp:100},
+    {name:'Hobgoblin',cr:.5,hp_max:11,ac:18,dex:12,initiative_bonus:1,attacks:[{name:'Longsword',hit_bonus:3,damage:'1d8+1',isRanged:false}],multiCount:1,type:'humanoid',xp:100},
+    {name:'Bandit',cr:.125,hp_max:11,ac:12,dex:12,initiative_bonus:1,attacks:[{name:'Scimitar',hit_bonus:3,damage:'1d6+1',isRanged:false}],multiCount:1,type:'humanoid',xp:25},
+    {name:'Bandit Captain',cr:2,hp_max:65,ac:15,dex:16,initiative_bonus:3,attacks:[{name:'Scimitar',hit_bonus:5,damage:'1d6+3',isRanged:false}],multiCount:2,type:'humanoid',xp:450},
+    {name:'Gnoll',cr:.5,hp_max:22,ac:15,dex:10,initiative_bonus:0,attacks:[{name:'Spear',hit_bonus:4,damage:'2d6+2',isRanged:false}],multiCount:1,type:'humanoid',xp:100},
+    {name:'Skeleton',cr:.25,hp_max:13,ac:13,dex:14,initiative_bonus:2,attacks:[{name:'Shortsword',hit_bonus:4,damage:'1d6+2',isRanged:false}],multiCount:1,type:'undead',xp:50},
+    {name:'Zombie',cr:.25,hp_max:22,ac:8,dex:6,initiative_bonus:-2,attacks:[{name:'Slam',hit_bonus:3,damage:'1d6+1',isRanged:false}],multiCount:1,type:'undead',xp:50},
+    {name:'Ghoul',cr:1,hp_max:22,ac:12,dex:15,initiative_bonus:2,attacks:[{name:'Claws',hit_bonus:4,damage:'2d4+2',isRanged:false}],multiCount:2,type:'undead',xp:200},
+    {name:'Shadow',cr:.5,hp_max:16,ac:12,dex:14,initiative_bonus:2,attacks:[{name:'Strength Drain',hit_bonus:4,damage:'2d6+2',isRanged:false}],multiCount:1,type:'undead',xp:100},
+    {name:'Specter',cr:1,hp_max:22,ac:12,dex:14,initiative_bonus:2,attacks:[{name:'Life Drain',hit_bonus:4,damage:'3d6',isRanged:false}],multiCount:1,type:'undead',xp:200},
+    {name:'Wight',cr:3,hp_max:45,ac:14,dex:14,initiative_bonus:2,attacks:[{name:'Life Drain',hit_bonus:4,damage:'1d6+2',isRanged:false}],multiCount:2,type:'undead',xp:700},
+    {name:'Wolf',cr:.25,hp_max:11,ac:13,dex:15,initiative_bonus:2,attacks:[{name:'Bite',hit_bonus:4,damage:'2d4+2',isRanged:false}],multiCount:1,type:'beast',xp:50},
+    {name:'Brown Bear',cr:1,hp_max:34,ac:11,dex:10,initiative_bonus:0,attacks:[{name:'Claw',hit_bonus:5,damage:'2d6+4',isRanged:false}],multiCount:2,type:'beast',xp:200},
+    {name:'Dire Wolf',cr:1,hp_max:37,ac:14,dex:15,initiative_bonus:2,attacks:[{name:'Bite',hit_bonus:5,damage:'2d6+3',isRanged:false}],multiCount:1,type:'beast',xp:200},
+    {name:'Owlbear',cr:3,hp_max:59,ac:13,dex:12,initiative_bonus:1,attacks:[{name:'Claw',hit_bonus:7,damage:'2d8+5',isRanged:false}],multiCount:2,type:'beast',xp:700},
+    {name:'Black Bear',cr:.5,hp_max:19,ac:11,dex:10,initiative_bonus:0,attacks:[{name:'Claw',hit_bonus:3,damage:'2d6+1',isRanged:false}],multiCount:2,type:'beast',xp:100},
+  ];
+}
+
+async function loadBestiaries() {
+  setBadge('loading','Loading bestiary...');
+  try {
+    const cached=localStorage.getItem(CACHE_KEY);
+    if (cached) {
+      try {
+        const p=JSON.parse(cached);
+        if (p&&p.length>100) { allMonsters=p; monstersReady=true; setBadge('ready',p.length+' monsters loaded'); updateBudgets(); return; }
+      } catch(e) {}
+    }
+    setBadge('loading','Downloading...');
+    const rs=await Promise.all(BSRC.map(u=>fetch(u).then(r=>r.json()).catch(()=>({monster:[]}))));
+    allMonsters=rs.flatMap(d=>d.monster||[]).map(parseMonster).filter(Boolean);
+    try { localStorage.setItem(CACHE_KEY,JSON.stringify(allMonsters)); } catch(e) {}
+    monstersReady=true;
+    setBadge('ready',allMonsters.length+' monsters loaded');
+    updateBudgets();
+  } catch(e) {
+    console.error(e);
+    allMonsters=fallbackMonsters();
+    monstersReady=true;
+    setBadge('error','Offline — fallback data ('+allMonsters.length+' monsters)');
+    updateBudgets();
+  }
+}
+function setBadge(s,t) { const b=document.getElementById('statusBadge'); if(b){b.className='badge-status '+s;b.textContent=t;} }
+
+// ============================================================
+// SESSION SAVE / LOAD
+// ============================================================
+function saveNote(mapId,value) {
+  encounterNotes[mapId]=value;
+  persistSession();
+}
+function persistSession() {
+  try {
+    localStorage.setItem('dnd_session',JSON.stringify({
+      encounters,
+      party:party.map(pc=>({...pc})),
+      notes:encounterNotes,
+      shapes:encounterShapes,
+      seeds:Object.fromEntries(Object.entries(seedMonsters).map(([k,v])=>[k,v?{name:v.name,cr:v.cr}:null])),
+    }));
+  } catch(e) {}
+}
+function loadSession() {
+  try {
+    const raw=localStorage.getItem('dnd_session');
+    if (!raw) return;
+    const s=JSON.parse(raw);
+    if (s.encounters) Object.assign(encounters,s.encounters);
+    if (s.party&&s.party.length) { party.length=0; s.party.forEach(p=>party.push(p)); party.forEach((_,i)=>applySubclassBonuses(i)); }
+    if (s.notes) Object.assign(encounterNotes,s.notes);
+    if (s.shapes) { Object.assign(encounterShapes,s.shapes); }
+  } catch(e) {}
+}
+
+// ============================================================
+// MAP ENCOUNTER MANAGEMENT
+// ============================================================
+function getBudget(diff) {
+  if (!party.length) return 750;
+  const lvl=Math.max(1,Math.min(20,Math.round(party.reduce((s,p)=>s+(p.level||5),0)/party.length)));
+  const t=XP_THR[lvl]||XP_THR[5];
+  return (t[diff]||t.hard)*party.length;
+}
+function updateBudgets() {
+  const diff=document.getElementById('diffSel')?.value||'hard';
+  const b=getBudget(diff);
+  MAP_KEYS.forEach(id=>{
+    const e1=document.getElementById('bgt-'+id);   if(e1)e1.textContent=b;
+    const e2=document.getElementById('bgt2-'+id);  if(e2)e2.textContent=b;
+  });
+}
+
+// ---- ENCOUNTER SHAPE ----
+const encounterShapes={'open-field':'random','dungeon':'random','forest':'random'};
+const SHAPE_LABELS={random:'🎲 Random',boss:'🐉 Boss+Minions',elite:'⚔️ Elite Squad',horde:'🌊 Horde',ambush:'🎯 Ambush'};
+function setShape(mapId,shape) {
+  encounterShapes[mapId]=shape;
+  ['random','boss','elite','horde','ambush'].forEach(s=>{
+    const c=document.getElementById('sc-'+mapId+'-'+s);
+    if(c) c.classList.toggle('active',s===shape);
+  });
+}
+function analyzeParty() {
+  const pcList=party||[];
+  if (!pcList.length) return {hasMelee:true,hasCasters:false,hasHealer:false,meleePct:1,avgLevel:3,size:4};
+  const MELEE_CLS=['Barbarian','Fighter','Paladin','Monk','Rogue'];
+  const CASTER_CLS=['Wizard','Sorcerer','Warlock','Druid','Bard'];
+  const HEALER_CLS=['Cleric','Druid','Paladin','Bard'];
+  let meleeCount=0,casterCount=0,healerCount=0,lvlSum=0;
+  for (const p of pcList) {
+    const cls=p.class||'Fighter';
+    if (MELEE_CLS.includes(cls)) meleeCount++;
+    if (CASTER_CLS.includes(cls)) casterCount++;
+    if (HEALER_CLS.includes(cls)) healerCount++;
+    lvlSum+=p.level||3;
+  }
+  const n=pcList.length||4;
+  return {hasMelee:meleeCount>0,hasCasters:casterCount>0,hasHealer:healerCount>0,meleePct:meleeCount/n,avgLevel:lvlSum/n,size:n};
+}
+
+// ---- SEED MONSTER ----
+const seedMonsters={};
+function doSeedSearch(mapId,q) {
+  if (!q||q.length<2) { document.getElementById('ssdrop-'+mapId)?.classList.remove('open'); return; }
+  const ql=q.toLowerCase();
+  const hits=allMonsters.map((m,i)=>({m,i})).filter(({m})=>m.name.toLowerCase().includes(ql)).slice(0,12);
+  const drop=document.getElementById('ssdrop-'+mapId); if(!drop) return;
+  if (!hits.length) { drop.classList.remove('open'); return; }
+  drop.innerHTML=hits.map(({m,i})=>`
+    <div class="search-item" onmousedown="setSeed('${mapId}',${i})">
+      <span>${m.name}</span>
+      <span><span class="badge b-cr">CR ${crLabel(m.cr)}</span>
+      <span class="badge b-type">${m.type}</span></span>
+    </div>`).join('');
+  drop.classList.add('open');
+}
+function closeSeedSearch(mapId) { setTimeout(()=>document.getElementById('ssdrop-'+mapId)?.classList.remove('open'),200); }
+function setSeed(mapId,monIdx) {
+  const m=allMonsters[monIdx]; if(!m) return;
+  seedMonsters[mapId]=m;
+  // Hide input, show chip
+  const inp=document.getElementById('seed-input-'+mapId);
+  const chip=document.getElementById('seed-chip-'+mapId);
+  if(inp) inp.style.display='none';
+  if(chip) { chip.style.display='inline-flex'; }
+  const nm=document.getElementById('seed-name-'+mapId);   if(nm) nm.textContent=m.name;
+  const cr=document.getElementById('seed-cr-'+mapId);     if(cr) cr.textContent='CR '+crLabel(m.cr)+' · '+m.type;
+  document.getElementById('ssdrop-'+mapId)?.classList.remove('open');
+  document.getElementById('ssrch-'+mapId).value='';
+}
+function clearSeed(mapId) {
+  seedMonsters[mapId]=null;
+  const inp=document.getElementById('seed-input-'+mapId);
+  const chip=document.getElementById('seed-chip-'+mapId);
+  if(inp) inp.style.display='';
+  if(chip) chip.style.display='none';
+}
+
+function autoFill(mapId) {
+  if (!monstersReady||!allMonsters.length) { alert('Bestiary still loading...'); return; }
+  const cfg=MAP_CFG[mapId];
+  const diff=document.getElementById('diffSel')?.value||'hard';
+  let budget=getBudget(diff);
+  const seed=seedMonsters[mapId];
+  const shape=encounterShapes[mapId]||'random';
+  const party=analyzeParty();
+
+  // Party-awareness: no healer → reduce budget by 15% (more survivable encounter)
+  if (!party.hasHealer) budget=Math.floor(budget*0.85);
+
+  encounters[mapId]=[];
+
+  // Seed-anchored fill takes priority over shape for boss/ambush; other shapes use seed as primary
+  if (seed) {
+    if (shape==='boss')   { fillBoss(mapId,budget,cfg,seed); }
+    else if (shape==='ambush') { fillAmbush(mapId,budget,cfg,seed); }
+    else { fillSeed(mapId,budget,cfg,seed); }
+  } else {
+    if      (shape==='boss')   fillBoss(mapId,budget,cfg,null);
+    else if (shape==='elite')  fillElite(mapId,budget,cfg);
+    else if (shape==='horde')  fillHorde(mapId,budget,cfg);
+    else if (shape==='ambush') fillAmbush(mapId,budget,cfg,null);
+    else                       fillRandom(mapId,budget,cfg);
+  }
+
+  if (!encounters[mapId].length) fillRandom(mapId,budget,cfg);
+  renderEnc(mapId);
+  renderEncounterFlavor(mapId);
+}
+
+function _pool(cfg,crMin,crMax) {
+  let p=allMonsters.filter(m=>m.cr>=(crMin??cfg.crMin)&&m.cr<=(crMax??cfg.crMax)&&cfg.types.some(t=>m.type.includes(t)));
+  if (p.length<3) p=allMonsters.filter(m=>m.cr>=(crMin??cfg.crMin)&&m.cr<=(crMax??cfg.crMax));
+  return p;
+}
+function _pick(arr,n) { return [...arr].sort(()=>Math.random()-.5).slice(0,n); }
+function _addEnc(mapId,m,budget_share,remaining) {
+  if (!m||!m.xp) return 0;
+  const cnt=Math.max(1,Math.min(8,Math.floor(budget_share/(m.xp))));
+  encounters[mapId].push({name:m.name,count:cnt,data:m});
+  return m.xp*cnt;
+}
+
+function fillSeed(mapId,budget,cfg,seed) {
+  const seedCount=Math.max(1,Math.min(4,Math.floor(budget*0.35/(seed.xp||1))));
+  encounters[mapId].push({name:seed.name,count:seedCount,data:seed});
+  let rem=budget-seed.xp*seedCount;
+  const seedCR=seed.cr;
+  let comp=allMonsters.filter(m=>m.name!==seed.name&&m.type===seed.type&&m.cr>=Math.max(0.125,seedCR/3)&&m.cr<=Math.max(seedCR*1.5,1)).sort(()=>Math.random()-.5);
+  if (comp.length<2) comp=allMonsters.filter(m=>m.name!==seed.name&&m.cr>=Math.max(0.125,seedCR/3)&&m.cr<=Math.max(seedCR*1.5,1)).sort(()=>Math.random()-.5);
+  const numComp=Math.min(comp.length,rem>0?2:0);
+  for (const m of comp.slice(0,numComp)) {
+    if (rem<=0||!m.xp) continue;
+    const cnt=Math.max(1,Math.min(6,Math.floor(rem/(m.xp*numComp))));
+    encounters[mapId].push({name:m.name,count:cnt,data:m});
+    rem-=m.xp*cnt;
+  }
+}
+
+function fillBoss(mapId,budget,cfg,seed) {
+  const bossBudget=Math.floor(budget*0.45);
+  let boss=seed;
+  if (!boss) {
+    const pool=_pool(cfg).filter(m=>m.xp<=bossBudget&&m.xp>0);
+    if (!pool.length) return;
+    boss=_pick(pool.filter(m=>m.xp>=bossBudget*0.5)||pool,1)[0]||pool[pool.length-1];
+  }
+  encounters[mapId].push({name:boss.name,count:1,data:boss});
+  let rem=budget-boss.xp;
+  // Minions: same creature type, CR ≤ boss.cr/2
+  const minionPool=allMonsters.filter(m=>
+    m.name!==boss.name&&m.type===boss.type&&m.cr<=Math.max(boss.cr/2,0.5)&&m.xp>0&&m.xp<=rem
+  ).sort(()=>Math.random()-.5);
+  const minionTypes=minionPool.slice(0,2);
+  for (const m of minionTypes) {
+    if (rem<=0) break;
+    const share=Math.floor(rem/minionTypes.length);
+    const cnt=Math.max(1,Math.min(8,Math.floor(share/(m.xp))));
+    encounters[mapId].push({name:m.name,count:cnt,data:m});
+    rem-=m.xp*cnt;
+  }
+  if (minionTypes.length===0&&rem>0) {
+    const anyMinion=allMonsters.filter(m=>m.name!==boss.name&&m.cr<=Math.max(boss.cr/2,0.5)&&m.xp>0&&m.xp<=rem).sort(()=>Math.random()-.5)[0];
+    if (anyMinion) { const cnt=Math.max(1,Math.min(8,Math.floor(rem/anyMinion.xp))); encounters[mapId].push({name:anyMinion.name,count:cnt,data:anyMinion}); }
+  }
+}
+
+function fillElite(mapId,budget,cfg) {
+  const pool=_pool(cfg).filter(m=>m.xp>0&&m.xp<=budget);
+  if (!pool.length) return;
+  // Try to pick from different role buckets for variety
+  const byRole={};
+  for (const m of pool) { if (!byRole[m.role]) byRole[m.role]=[]; byRole[m.role].push(m); }
+  const roles=Object.keys(byRole);
+  const numPicks=Math.min(roles.length,3);
+  const chosen=[];
+  const usedRoles=_pick(roles,numPicks);
+  for (const r of usedRoles) chosen.push(_pick(byRole[r],1)[0]);
+  if (chosen.length<2) chosen.push(..._pick(pool.filter(m=>!chosen.includes(m)),2-chosen.length));
+  let rem=budget;
+  for (const m of chosen) {
+    if (!m||rem<=0||!m.xp) continue;
+    const share=Math.floor(rem/chosen.length);
+    const cnt=Math.max(1,Math.min(4,Math.floor(share/m.xp)));
+    encounters[mapId].push({name:m.name,count:cnt,data:m});
+    rem-=m.xp*cnt;
+  }
+}
+
+function fillHorde(mapId,budget,cfg) {
+  const pool=_pool(cfg,cfg.crMin,Math.min(cfg.crMax,1)).filter(m=>m.xp>0);
+  if (!pool.length) {
+    // Fallback: low-CR from entire bestiary
+    const fb=allMonsters.filter(m=>m.cr<=1&&m.xp>0).sort(()=>Math.random()-.5);
+    if (!fb.length) return;
+    const m=fb[0];
+    const cnt=Math.max(6,Math.min(12,Math.floor(budget/m.xp)));
+    encounters[mapId].push({name:m.name,count:cnt,data:m});
+    return;
+  }
+  const primary=_pick(pool,1)[0];
+  const cnt=Math.max(6,Math.min(12,Math.floor(budget*0.75/(primary.xp))));
+  encounters[mapId].push({name:primary.name,count:cnt,data:primary});
+  let rem=budget-primary.xp*cnt;
+  if (rem>0) {
+    const secondary=_pick(pool.filter(m=>m.name!==primary.name),1)[0];
+    if (secondary) { const cnt2=Math.max(2,Math.min(6,Math.floor(rem/secondary.xp))); encounters[mapId].push({name:secondary.name,count:cnt2,data:secondary}); }
+  }
+}
+
+function fillAmbush(mapId,budget,cfg,seed) {
+  const meleeBudget=Math.floor(budget*0.60);
+  const rangeBudget=budget-meleeBudget;
+  const meleePool=_pool(cfg).filter(m=>m.xp>0&&(m.role==='brute'||m.role==='skirmisher'||m.role==='defender'));
+  const rangePool=_pool(cfg).filter(m=>m.xp>0&&(m.role==='ranged'||m.role==='caster'));
+  const melee=seed||(meleePool.length?_pick(meleePool,1)[0]:_pick(_pool(cfg).filter(m=>m.xp>0),1)[0]);
+  if (!melee) return;
+  const mCnt=Math.max(2,Math.min(6,Math.floor(meleeBudget/melee.xp)));
+  encounters[mapId].push({name:melee.name,count:mCnt,data:melee});
+  if (rangeBudget>0&&rangePool.length) {
+    const range=_pick(rangePool.filter(m=>m.name!==melee.name),1)[0];
+    if (range) { const rCnt=Math.max(1,Math.min(4,Math.floor(rangeBudget/range.xp))); encounters[mapId].push({name:range.name,count:rCnt,data:range}); }
+  }
+}
+
+function fillRandom(mapId,budget,cfg) {
+  let pool=_pool(cfg).filter(m=>m.xp>0);
+  if (!pool.length) pool=allMonsters.filter(m=>m.cr>=cfg.crMin&&m.cr<=cfg.crMax&&m.xp>0);
+  if (!pool.length) return;
+  const numTypes=Math.min(pool.length,Math.random()>.4?3:2);
+  const chosen=_pick(pool,numTypes);
+  let rem=budget;
+  for (const m of chosen) {
+    if (rem<=0) break;
+    const cnt=Math.max(1,Math.min(6,Math.floor(rem/(m.xp*chosen.length))));
+    encounters[mapId].push({name:m.name,count:cnt,data:m});
+    rem-=m.xp*cnt;
+  }
+  if (!encounters[mapId].length) encounters[mapId]=[{name:pool[0].name,count:2,data:pool[0]}];
+}
+
+function renderEncounterFlavor(mapId) {
+  const el=document.getElementById('enc-flavor-'+mapId);
+  if (!el) return;
+  const enc=encounters[mapId];
+  if (!enc.length) { el.style.display='none'; return; }
+  const shape=encounterShapes[mapId]||'random';
+  let text='';
+  if (shape==='boss'&&enc.length>=2) {
+    const boss=enc[0];const minion=enc[1];
+    text=`The ${minion.name}s scramble at the command of their ${boss.name} overlord.`;
+  } else if (shape==='elite') {
+    const names=enc.map(e=>e.name).join(' and ');
+    text=`A squad of ${names} moves with unnerving coordination.`;
+  } else if (shape==='horde'&&enc.length) {
+    const primary=enc[0];
+    text=`${primary.count} ${primary.name}s surge forward in a chittering mass.`;
+  } else if (shape==='ambush'&&enc.length>=2) {
+    text=`Melee fighters charge through the brush while ${enc[enc.length-1].name}s hold the high ground.`;
+  } else if (enc.length) {
+    const names=enc.map(e=>`${e.count}× ${e.name}`).join(', ');
+    text=`Encounter: ${names}.`;
+  }
+  if (text) { el.textContent=text; el.style.display=''; }
+  else el.style.display='none';
+}
+
+function clearMap(mapId) { encounters[mapId]=[]; renderEnc(mapId); }
+
+// Add from bestiary search (by monster object ref stored in allMonsters)
+function addFromSearch(mapId, monIdx) {
+  const m=allMonsters[monIdx];
+  if (!m) return;
+  const ex=encounters[mapId].find(e=>e.name===m.name);
+  if (ex) ex.count++;
+  else encounters[mapId].push({name:m.name,count:1,data:m});
+  document.getElementById('sdrop-'+mapId).classList.remove('open');
+  document.getElementById('srch-'+mapId).value='';
+  renderEnc(mapId);
+}
+
+// Add custom monster manually
+function addCustomMonster(mapId) {
+  const g=id=>document.getElementById(id+'-'+mapId)?.value?.trim()||'';
+  const name=g('cn'); if (!name) { alert('Enter a monster name.'); return; }
+  const cr=parseCR(g('ccr'));
+  const hp=parseInt(g('chp'))||10;
+  const ac=parseInt(g('cac'))||12;
+  const hit=parseInt(g('chit'))||3;
+  const dmg=g('cdmg')||'1d6+2';
+  const mul=parseInt(g('cmul'))||1;
+  const cnt=parseInt(g('ccnt'))||1;
+  const type=(g('ct')||'custom').toLowerCase();
+  const xp=CR_XP[cr]!==undefined?CR_XP[cr]:Math.max(10,Math.round(cr*200));
+  const mData={name,cr,hp_max:hp,ac,dex:10,initiative_bonus:0,attacks:[{name:'Attack',hit_bonus:hit,damage:dmg,isRanged:false}],multiCount:mul,type,xp};
+  const ex=encounters[mapId].find(e=>e.name===name);
+  if (ex) ex.count+=cnt; else encounters[mapId].push({name,count:cnt,data:mData});
+  renderEnc(mapId);
+}
+
+// Change count by index — no name string needed, no escaping issues
+function changeCount(mapId, idx, delta) {
+  const enc=encounters[mapId];
+  if (!enc||!enc[idx]) return;
+  enc[idx].count=Math.max(0,enc[idx].count+delta);
+  if (enc[idx].count===0) enc.splice(idx,1);
+  renderEnc(mapId);
+}
+function removeEnc(mapId, idx) {
+  encounters[mapId].splice(idx,1);
+  renderEnc(mapId);
+}
+
+function renderEnc(mapId) {
+  const el=document.getElementById('enc-'+mapId);
+  if (!el) return;
+  const enc=encounters[mapId];
+  if (!enc.length) {
+    el.innerHTML='<div class="enc-empty">Click ⚡ Auto-fill, search above, or + Custom</div>';
+  } else {
+    el.innerHTML=enc.map((e,i)=>`
+      <div class="enc-row">
+        <div class="enc-info">
+          <span class="bold" style="cursor:pointer;color:var(--accent)" onclick="openMonStatModal(encounters['${mapId}'][${i}].data)" title="View stat block">${e.name}</span>
+          <span class="badge b-cr">CR ${crLabel(e.data.cr)}</span>
+          ${(()=>{const avgLvl=(party||[]).reduce((s,p)=>s+(p.level||5),0)/Math.max(1,(party||[]).length);const danger=e.data.cr>avgLvl*1.5;const deadly=e.data.cr>avgLvl*3;return deadly?'<span title="DEADLY: This monster is far above your party\'s level!" style="color:var(--red);font-weight:bold;margin-left:2px">⚠️ DEADLY</span>':danger?'<span title="Dangerous: CR significantly above party level" style="color:var(--gold);margin-left:2px">⚠️</span>':''})()}
+          <span class="badge b-hp">HP ${e.data.hp_max}</span>
+          <span class="badge b-ac">AC ${e.data.ac}</span>
+          <span class="badge b-xp">${e.data.xp*e.count} XP</span>
+          <span class="badge b-type">${e.data.type}</span>
+          ${e.data.breathWeapon?`<span class="badge" style="background:rgba(200,86,58,.25);color:var(--red)" title="${e.data.breathWeapon.name}: ${e.data.breathWeapon.damage} ${e.data.breathWeapon.dmgType}, DC ${e.data.breathWeapon.dc}">🔥 Breath</span>`:''}
+          ${e.data.legendaryActionCount?`<span class="badge" style="background:rgba(232,168,40,.2);color:var(--gold)" title="Has legendary actions">⭐ Legendary</span>`:''}
+        </div>
+        <div class="enc-ctrl">
+          <button class="cnt-btn" onclick="changeCount('${mapId}',${i},-1)">−</button>
+          <span class="cnt-num">×${e.count}</span>
+          <button class="cnt-btn" onclick="changeCount('${mapId}',${i},1)">+</button>
+          <button class="btn-icon" onclick="removeEnc('${mapId}',${i})" title="Remove">✕</button>
+        </div>
+      </div>`).join('');
+  }
+  const tot=enc.reduce((s,e)=>s+e.data.xp*e.count,0);
+  const cnt=enc.reduce((s,e)=>s+e.count,0);
+  const xe=document.getElementById('xp-'+mapId); if(xe)xe.textContent=tot;
+  const ce=document.getElementById('mc-'+mapId); if(ce)ce.textContent=cnt;
+  persistSession();
+}
+
+function doSearch(mapId, q) {
+  const drop=document.getElementById('sdrop-'+mapId);
+  if (!drop) return;
+  if (!q||q.length<2) { drop.classList.remove('open'); return; }
+  const ql=q.toLowerCase();
+  const matches=allMonsters.map((m,i)=>({m,i})).filter(({m})=>m.name.toLowerCase().includes(ql)).sort((a,b)=>a.m.name.localeCompare(b.m.name)).slice(0,14);
+  if (!matches.length) { drop.classList.remove('open'); return; }
+  drop.innerHTML=matches.map(({m,i})=>`
+    <div class="sr-item" onmousedown="addFromSearch('${mapId}',${i})">
+      <span>${m.name}</span>
+      <span class="sr-meta">
+        <span class="badge b-cr">CR ${crLabel(m.cr)}</span>
+        <span class="badge b-type">${m.type}</span>
+        <span class="badge b-xp">${m.xp} XP</span>
+        <span class="btn-icon" style="font-size:11px;padding:1px 4px" onmousedown="event.stopPropagation();openMonStatModal(allMonsters[${i}])" title="Preview stat block">🔍</span>
+      </span>
+    </div>`).join('');
+  drop.classList.add('open');
+}
+function closeSearch(mapId) { setTimeout(()=>document.getElementById('sdrop-'+mapId)?.classList.remove('open'),200); }
+function toggleCustomForm(mapId) { const f=document.getElementById('cform-'+mapId); if(f) f.classList.toggle('open'); }
+
+// ============================================================
+// PARTY BUILDER UI
+// ============================================================
+const CLASSES=['Barbarian','Bard','Cleric','Druid','Fighter','Monk','Paladin','Ranger','Rogue','Sorcerer','Warlock','Wizard'];
+// Subclass data. Sim bonuses: critThreshold(18/19), dmgBonus(flat/hit), multiBonus(+attacks),
+// resistNonPsychic, advRound1, healBonus, evoBonus, hpBonus, acBonus
+const SUBCLASSES={
+  Barbarian:[
+    {name:'Berserker',           critThreshold:19,         note:'Crit 19-20 while raging'},
+    {name:'Totem Warrior — Bear',resistNonPsychic:true,    note:'Resist all dmg except psychic (raging)'},
+    {name:'Totem Warrior — Eagle',                          note:'Dash as bonus action'},
+    {name:'Zealot',              dmgBonus:3,                note:'+1d4+prof radiant on first hit'},
+    {name:'Wild Heart',                                     note:'Animal instinct saves'},
+    {name:'Giant',               dmgBonus:2,                note:'Huge weapon Enlarge bonus'},
+    {name:'Ancestral Guardian',                             note:'Redirect attacks to yourself'},
+    {name:'Storm Herald',        dmgBonus:2,                note:'Aura of storm damage'},
+  ],
+  Bard:[
+    {name:'Lore',                                           note:'Extra Magical Secrets at lv6'},
+    {name:'Valor',               multiBonus:1,              note:'Extra Attack at lv6'},
+    {name:'Swords',              dmgBonus:3,                note:'Blade Flourish +1d6 dmg'},
+    {name:'Glamour',                                        note:'Mantle of Inspiration aura'},
+    {name:'Spirits',             dmgBonus:3,                note:'Tales of the Beyond spirit dmg'},
+    {name:'Creation',                                       note:'Animating Performance'},
+  ],
+  Cleric:[
+    {name:'Life',                healBonus:3,               note:'+3 to all healing done'},
+    {name:'War',                 multiBonus:1,              note:'War Priest: extra weapon attack'},
+    {name:'Tempest',             dmgBonus:3,                note:'Max thunder/lightning dmg 2/rest'},
+    {name:'Light',               acBonus:1,                 note:'Warding Flare: impose disadvantage'},
+    {name:'Trickery',                                       note:'Invoke Duplicity'},
+    {name:'Nature',                                         note:'Acolyte of Nature spells'},
+    {name:'Twilight',            hpBonus:6,                 note:'Twilight Sanctuary temp HP'},
+    {name:'Peace',               healBonus:2,               note:'Balm of Peace healing'},
+    {name:'Grave',               dmgBonus:2,                note:'Path to the Grave: vulnerability'},
+  ],
+  Druid:[
+    {name:'Moon',                hpBonus:8,                 note:'Elemental Wild Shape HP bonus'},
+    {name:'Land',                                           note:'Natural Recovery extra slots'},
+    {name:'Spores',              dmgBonus:3,                note:'Symbiotic Entity: +1d6 necrotic'},
+    {name:'Stars',               healBonus:2,               note:'Starry Form Chalice heals'},
+    {name:'Wildfire',            dmgBonus:2,                note:'Enhanced Bond: +1d8 to fire spells'},
+    {name:'Dreams',              healBonus:2,               note:'Balm of the Summer Court'},
+  ],
+  Fighter:[
+    {name:'Champion',            critThreshold:18,          note:'Improved Critical: crit 18-20'},
+    {name:'Battle Master',       dmgBonus:4,                note:'Superiority Die: +1d8 per hit (avg)'},
+    {name:'Eldritch Knight',                                note:'Arcane spells (Blur, Fireball)'},
+    {name:'Samurai',             dmgBonus:3,                note:'Fighting Spirit: advantage + +1d8'},
+    {name:'Psi Warrior',         dmgBonus:3,                note:'Psionic Strike force dmg bonus'},
+    {name:'Rune Knight',         hpBonus:5,                 note:'Giant Rune + temp HP'},
+    {name:'Echo Knight',         multiBonus:1,              note:'Unleash Incarnation extra attack'},
+  ],
+  Monk:[
+    {name:'Open Hand',           dmgBonus:2,                note:'Flurry: push/knock prone on hit'},
+    {name:'Shadow',                                         note:'Shadow Step 60ft teleport'},
+    {name:'Four Elements',                                  note:'Elemental disciplines'},
+    {name:'Mercy',               healBonus:3,               note:'Hand of Healing touch'},
+    {name:'Ascendant Dragon',    dmgBonus:3,                note:'Dragon Strike bonus dmg type'},
+    {name:'Sun Soul',            dmgBonus:2,                note:'Radiant Sun Bolt ranged attack'},
+    {name:'Drunken Master',      dmgBonus:2,                note:'Tipsy Sway redirect attacks'},
+  ],
+  Paladin:[
+    {name:'Devotion',            dmgBonus:2,                note:'Sacred Weapon +CHA mod to hit/dmg'},
+    {name:'Vengeance',           dmgBonus:3,                note:'Vow of Enmity: adv on target'},
+    {name:'Ancients',            acBonus:1,                 note:'Aura of Warding: resist spell dmg'},
+    {name:'Glory',               healBonus:2,               note:'Inspiring Smite: heal on crit'},
+    {name:'Oathbreaker',         dmgBonus:4,                note:'Dreadful Aspect + Control Undead'},
+    {name:'Conquest',            dmgBonus:2,                note:'Aura of Conquest fear dmg'},
+    {name:'Crown',               acBonus:1,                 note:'Compelled Duel redirect attacks'},
+  ],
+  Ranger:[
+    {name:'Hunter',              dmgBonus:4,                note:'Colossus Slayer: +1d8 vs wounded'},
+    {name:'Gloom Stalker',       advRound1:true, dmgBonus:3,note:'Dread Ambusher: adv+1d8 on first attack'},
+    {name:'Beast Master',                                   note:'Primal Companion animal ally'},
+    {name:'Fey Wanderer',        dmgBonus:3,                note:'+WIS mod to first dmg each turn'},
+    {name:'Swarmkeeper',         dmgBonus:2,                note:'Gathered Swarm forced movement'},
+    {name:'Horizon Walker',      dmgBonus:3,                note:'+1d8 force on first attack/turn'},
+  ],
+  Rogue:[
+    {name:'Thief',                                          note:'Fast Hands extra object interaction'},
+    {name:'Assassin',            critThreshold:19, advRound1:true, note:'Assassinate: adv+crit 19-20 in round 1'},
+    {name:'Arcane Trickster',                               note:'Enchantment & illusion spells'},
+    {name:'Swashbuckler',        dmgBonus:2,                note:'Fancy Footwork: sneak without ally'},
+    {name:'Phantom',             dmgBonus:2,                note:'Wails from the Grave necrotic dmg'},
+    {name:'Soul Knife',          dmgBonus:3,                note:'Psychic Blades bonus dmg'},
+    {name:'Inquisitive',                                    note:'Ear for Deceit, Insightful Fighting'},
+  ],
+  Sorcerer:[
+    {name:'Wild Magic',          dmgBonus:2,                note:'Tides of Chaos surge bonus dmg'},
+    {name:'Draconic Bloodline',  acBonus:1, hpBonus:5,     note:'Draconic Resilience: +1 AC, +5 HP'},
+    {name:'Divine Soul',         healBonus:2,               note:'Divine Magic: cleric spell access'},
+    {name:'Shadow',              dmgBonus:2,                note:'Hound of Ill Omen disadvantage'},
+    {name:'Clockwork Soul',                                 note:'Restore Balance cancel adv/disadv'},
+    {name:'Aberrant Mind',       dmgBonus:2,                note:'Psionic Spells bonus dmg'},
+  ],
+  Warlock:[
+    {name:'The Fiend',           hpBonus:6,                 note:"Dark One's Blessing: temp HP on kills"},
+    {name:'The Great Old One',                              note:'Telepathy + Awakened Mind'},
+    {name:'The Archfey',         dmgBonus:2,                note:'Misty Escape + charm abilities'},
+    {name:'The Undying',         hpBonus:4,                 note:'Among the Dead: resistance'},
+    {name:'The Celestial',       healBonus:3,               note:'Healing Light: bonus heal die pool'},
+    {name:'The Hexblade',        critThreshold:19,          note:'Hexblade Curse: crit 19-20 vs cursed'},
+  ],
+  Wizard:[
+    {name:'Evocation',           evoBonus:4,                note:'Empowered Evocation: +INT mod to spell dmg'},
+    {name:'Abjuration',          hpBonus:8,                 note:'Arcane Ward: absorbs dmg (2×prof HP)'},
+    {name:'Divination',                                     note:'Portent: replace any roll 2/rest'},
+    {name:'Conjuration',                                    note:'Focused Conjuration concentration'},
+    {name:'Necromancy',          dmgBonus:2,                note:'Grim Harvest: regain HP on kills'},
+    {name:'Transmutation',       dmgBonus:2,                note:"Transmuter's Stone bonus saves"},
+    {name:'Illusion',                                       note:'Malleable Illusions tactics'},
+    {name:'Enchantment',         dmgBonus:2,                note:'Hypnotic Gaze action denial'},
+    {name:'Bladesinging',        acBonus:2, dmgBonus:2,    note:'Bladesong: +INT to AC, bonus attack'},
+    {name:'War Magic',           acBonus:1,                 note:'Arcane Deflection: +4 AC reaction'},
+  ],
+};
+function renderParty() {
+  const g=document.getElementById('partyGrid'); if(!g) return;
+  let html=party.map((pc,i)=>`
+    <div class="pc-card">
+      <div class="pc-head">
+        <div class="pc-num">${i+1}</div>
+        <input class="pc-name" type="text" value="${pc.name.replace(/"/g,'&quot;')}" onchange="party[${i}].name=this.value">
+        ${party.length>1?`<button class="btn-icon" onclick="removePC(${i})" title="Remove">✕</button>`:''}
+      </div>
+      <div class="frow" style="margin-bottom:6px">
+        <div><label>Class</label>
+          <select onchange="loadPreset(${i},this.value)">
+            ${CLASSES.map(c=>`<option${c===pc.class?' selected':''}>${c}</option>`).join('')}
+          </select>
+        </div>
+        <div><label>Level</label><input type="number" min="1" max="20" value="${pc.level}" onchange="party[${i}].level=+this.value;updateBudgets()"></div>
+      </div>
+      <div style="margin-bottom:8px">
+        <label style="display:block;margin-bottom:2px">Subclass
+          ${(()=>{const sub=SUBCLASSES[pc.class]?.find(s=>s.name===(pc.subclass||''));return sub?.note?`<span style="font-size:10px;color:var(--text3);margin-left:4px">${sub.note}</span>`:'';})()}
+        </label>
+        <select style="width:100%;font-size:12px" onchange="loadSubclass(${i},this.value)">
+          ${(SUBCLASSES[pc.class]||[]).map(s=>`<option value="${s.name}"${s.name===(pc.subclass||'')?' selected':''}>${s.name}</option>`).join('')}
+        </select>
+      </div>
+      <div class="frow3" style="margin-bottom:8px">
+        <div><label>HP Max</label><input type="number" min="1" value="${pc.hp_max}" onchange="party[${i}].hp_max=+this.value"></div>
+        <div><label>AC</label><input type="number" min="1" value="${pc.ac}" onchange="party[${i}].ac=+this.value"></div>
+        <div><label>Init+</label><input type="number" value="${pc.initiative_bonus}" onchange="party[${i}].initiative_bonus=+this.value"></div>
+      </div>
+      <div class="atk-mini">
+        <div class="txs tm" style="margin-bottom:3px">ATTACKS</div>
+        ${pc.attacks.map(a=>`<div class="atk-row">
+          <span>⚔</span><span class="bold">${a.name}</span>
+          <span class="tb">+${a.hit_bonus}</span><span class="tr">${a.damage}</span>
+          ${a.multi>1?`<span class="tgold">×${a.multi}</span>`:''}
+          ${a.sneak_attack?`<span class="tp">+${a.sneak_attack} snk</span>`:''}
+        </div>`).join('')}
+        ${pc.features.length?`<div class="txs tm" style="margin-top:5px;margin-bottom:2px">FEATURES</div>
+        ${pc.features.slice(0,4).map(f=>`<div class="txs tm">✦ ${f.name}${f.uses?' ('+f.uses+')':''}</div>`).join('')}`:''}
+        ${Object.keys(pc.spell_slots||{}).length?`<div class="txs tm" style="margin-top:5px">SLOTS: <span class="tp">${Object.entries(pc.spell_slots).map(([l,n])=>`L${l}:${n}`).join(' ')}</span></div>`:''}
+      </div>
+    </div>`).join('');
+  if (party.length<6) html+=`<div class="pc-card pc-card-add" onclick="addPC()"><div style="text-align:center;color:var(--text3)"><div style="font-size:28px;margin-bottom:4px">+</div><div class="tsm">Add PC</div></div></div>`;
+  g.innerHTML=html;
+  persistSession();
+}
+
+function loadPreset(idx, cls) {
+  const p=CLASS_PRESETS[cls]; if(!p||!party[idx]) return;
+  const name=party[idx].name;
+  const firstSub=(SUBCLASSES[cls]||[])[0]?.name||'';
+  party[idx]={...p,name,class:cls,subclass:firstSub,attacks:p.attacks.map(a=>({...a})),features:p.features.map(f=>({...f})),spell_slots:{...(p.spell_slots||{})}};
+  applySubclassBonuses(idx);
+  renderParty(); updateBudgets();
+}
+function loadSubclass(idx, subName) {
+  if (!party[idx]) return;
+  party[idx].subclass=subName;
+  applySubclassBonuses(idx);
+  renderParty();
+}
+function applySubclassBonuses(idx) {
+  const pc=party[idx]; if(!pc) return;
+  const sub=(SUBCLASSES[pc.class]||[]).find(s=>s.name===pc.subclass)||{};
+  pc.subCritThreshold = sub.critThreshold||20;
+  pc.subDmgBonus      = sub.dmgBonus||0;
+  pc.subMultiBonus    = sub.multiBonus||0;
+  pc.subResistNonPsychic = sub.resistNonPsychic||false;
+  pc.subAdvRound1     = sub.advRound1||false;
+  pc.subHealBonus     = sub.healBonus||0;
+  pc.subEvoBonus      = sub.evoBonus||0;
+  pc.subHpBonus  = sub.hpBonus||0;
+  pc.subAcBonus  = sub.acBonus||0;
+}
+function addPC() {
+  if (party.length>=6) return;
+  const base=PC_PRESETS[party.length%PC_PRESETS.length];
+  const newPc={...deepClonePC(base),name:'PC '+(party.length+1)};
+  newPc.subclass=(SUBCLASSES[newPc.class]||[])[0]?.name||'';
+  party.push(newPc);
+  applySubclassBonuses(party.length-1);
+  renderParty(); updateBudgets();
+}
+function removePC(i) { if(party.length<=1) return; party.splice(i,1); renderParty(); updateBudgets(); }
+
+// ============================================================
+// SIMULATION ENGINE
+// ============================================================
+const CLS_PRI={Wizard:10,Sorcerer:10,Warlock:9,Cleric:8,Druid:8,Bard:7,Ranger:6,Rogue:6,Monk:5,Paladin:4,Fighter:3,Barbarian:2};
+
+function clonePartyForRun(src) {
+  return src.map(pc=>({
+    name:pc.name,class:pc.class,level:pc.level||5,
+    hp_max:pc.hp_max+(pc.subHpBonus||0), hp:pc.hp_max+(pc.subHpBonus||0),
+    ac:pc.ac+(pc.subAcBonus||0),
+    initiative_bonus:pc.initiative_bonus||0,
+    attacks:pc.attacks.map(a=>({...a})),features:pc.features.map(f=>({...f})),
+    fu:Object.fromEntries(pc.features.map(f=>[f.name,f.uses||0])),
+    slots:pc.spell_slots?{...pc.spell_slots}:{},
+    sdc:pc.spell_save_dc,
+    // subclass bonuses
+    critThreshold:pc.subCritThreshold||20,
+    subDmgBonus:pc.subDmgBonus||0,
+    subMultiBonus:pc.subMultiBonus||0,
+    resistNonPsychic:pc.subResistNonPsychic||false,
+    advRound1:pc.subAdvRound1||false,
+    healBonus:pc.subHealBonus||0,
+    evoBonus:pc.subEvoBonus||0,
+    alive:true,conscious:true,stable:false,
+    ds:0,df:0,td:0,slu:0,raging:false,swActive:false,dodged:false,_round:1
+  }));
+}
+function cloneMonstersForRun(enc) {
+  const out=[];
+  for (const e of enc) for (let i=0;i<e.count;i++) out.push({...e.data,hp:e.data.hp_max,alive:true,breathReady:!!(e.data.breathWeapon)});
+  return out;
+}
+
+function bestMonTarget(ms) { const a=ms.filter(m=>m.alive); return a.length?a.reduce((x,y)=>x.hp<=y.hp?x:y):null; }
+function bestPcTarget(pcs) {
+  const lv=pcs.filter(p=>p.alive&&p.conscious); if(!lv.length) return null;
+  let bst=null,bsc=-999;
+  for (const pc of lv) { const s=(CLS_PRI[pc.class]||5)+(1-pc.hp/pc.hp_max)*3+(30-pc.ac)*.3; if(s>bsc){bsc=s;bst=pc;} }
+  return bst;
+}
+
+function doMonAtk(m,tgt,trn,hardcore) {
+  if (!tgt||!tgt.alive||!tgt.conscious) return;
+  let roll=r20();
+  if (trn.rangedDisadv&&m.attacks[0].isRanged) roll=Math.min(roll,r20());
+  else if (hardcore) roll=Math.max(roll,r20()); // advantage in hardcore
+  const critMin=hardcore?19:20;
+  const crit=roll>=critMin;
+  let eac=tgt.ac+trn.coverBonus;
+  if (trn.coverChance>0&&Math.random()<trn.coverChance) eac+=trn.coverAmt;
+  if (!crit&&roll+m.attacks[0].hit_bonus<eac) return;
+  const atk=m.attacks[0];
+  let dmg=rollDice(atk.damage); if(crit) dmg+=rollDice(atk.damage);
+  if (tgt.class==='Rogue'&&!tgt.dodged&&(tgt.fu['Uncanny Dodge']||0)>0) { dmg=Math.floor(dmg/2); tgt.dodged=true; }
+  if (tgt.resistNonPsychic) dmg=Math.floor(dmg/2); // Bear Totem Warrior
+  tgt.hp=Math.max(0,tgt.hp-dmg);
+  if (tgt.hp===0) {
+    if (tgt.conscious) { tgt.conscious=false; tgt.ds=0; tgt.df=0; tgt.td++; }
+    else { tgt.df++; if(tgt.df>=3) tgt.alive=false; }
+  }
+}
+
+function doPcAtk(pc,tgt,atk,trn,skipSneak) {
+  if (!tgt||!tgt.alive) return;
+  let roll=r20();
+  if (trn.rangedDisadv&&atk.isRanged) roll=Math.min(roll,r20());
+  if (pc.raging&&(pc.fu['Reckless Attack']||0)>0) roll=Math.max(roll,r20());
+  if (pc.advRound1&&pc._round===1) roll=Math.max(roll,r20()); // Gloom Stalker / Assassin
+  const crit=roll>=(pc.critThreshold||20);
+  let eac=tgt.ac+trn.coverBonus;
+  if (trn.coverChance>0&&Math.random()<trn.coverChance) eac+=trn.coverAmt;
+  if (!crit&&roll+atk.hit_bonus<eac) return;
+  let dmg=rollDice(atk.damage); if(crit) dmg+=rollDice(atk.damage);
+  if (pc.raging) dmg+=2;
+  if (!skipSneak&&atk.sneak_attack) dmg+=rollDice(atk.sneak_attack);
+  if (pc.class==='Paladin'&&pc.slots) { const sl=['1','2','3'].find(s=>(pc.slots[s]||0)>0); if(sl){pc.slots[sl]--;pc.slu++;dmg+=rollDice({'1':'2d8','2':'3d8','3':'4d8'}[sl]);} }
+  if (pc.subDmgBonus) dmg+=pc.subDmgBonus; // subclass flat dmg bonus
+  // Feature D: resistance/immunity by damage type
+  const dt=atk.dmgType;
+  if (dt&&tgt.immunities?.includes(dt)) return;
+  if (dt&&tgt.resistances?.includes(dt)) dmg=Math.floor(dmg/2);
+  tgt.hp=Math.max(0,tgt.hp-dmg);
+  if (tgt.hp===0) tgt.alive=false;
+}
+
+function deathSave(pc) {
+  const roll=r20();
+  if (roll===20) { pc.hp=1;pc.conscious=true;pc.ds=0;pc.df=0; return; }
+  if (roll===1) pc.df+=2; else if (roll>=10) pc.ds++; else pc.df++;
+  if (pc.ds>=3) { pc.stable=true;pc.ds=0;pc.df=0; }
+  if (pc.df>=3) pc.alive=false;
+}
+
+function pcTurn(pc,allPcs,mons,trn) {
+  pc.dodged=false;
+  const lm=mons.filter(m=>m.alive); if(!lm.length) return;
+
+  // Cleric: heal dying ally (action priority)
+  if (pc.class==='Cleric'&&(pc.slots['1']||0)>0) {
+    const dy=allPcs.find(p=>p!==pc&&p.alive&&!p.conscious&&!p.stable);
+    if (dy) { dy.hp=rollDice('1d8+3')+(pc.healBonus||0);dy.conscious=true;dy.ds=0;dy.df=0;pc.slots['1']--;pc.slu++;bonusTurn(pc,allPcs,lm,trn);return; }
+  }
+  // Second Wind (bonus action)
+  const sw=pc.features.find(f=>f.name==='Second Wind');
+  if (sw&&(pc.fu['Second Wind']||0)>0&&pc.hp<pc.hp_max*.35) { pc.hp=Math.min(pc.hp_max,pc.hp+rollDice(sw.heal||'1d10+5'));pc.fu['Second Wind']--; }
+  // Barbarian Rage
+  if (pc.class==='Barbarian'&&!pc.raging&&(pc.fu['Rage']||0)>0) { pc.raging=true;pc.fu['Rage']--; }
+  // Fireball
+  const fb=pc.features.find(f=>f.name==='Fireball'&&f.aoe);
+  if (fb&&lm.length>=2&&pc.slots) {
+    const sl=String(fb.spellLevel||3);
+    if ((pc.slots[sl]||0)>0) {
+      let rd=rollDice(fb.damage||'8d6')+(pc.evoBonus||0); pc.slots[sl]--;pc.slu++;
+      for (const m of lm) { const sv=r20()+pmod(m.dex||10); m.hp=Math.max(0,m.hp-(sv>=(fb.saveDC||15)?Math.floor(rd/2):rd)); if(m.hp===0)m.alive=false; }
+      bonusTurn(pc,allPcs,mons.filter(m=>m.alive),trn); return;
+    }
+  }
+  // Normal attacks
+  const atk=pc.attacks[0]; const multi=(atk.multi||1)+(pc.subMultiBonus||0);
+  let sneakUsed=false;
+  for (let i=0;i<multi;i++) {
+    const tgt=bestMonTarget(mons.filter(m=>m.alive)); if(!tgt) break;
+    doPcAtk(pc,tgt,atk,trn,sneakUsed); if(!sneakUsed&&atk.sneak_attack)sneakUsed=true;
+  }
+  // Action Surge
+  if ((pc.fu['Action Surge']||0)>0&&pc.hp<pc.hp_max*.35) {
+    pc.fu['Action Surge']--;
+    for (let i=0;i<multi;i++) { const t2=bestMonTarget(mons.filter(m=>m.alive)); if(!t2)break; doPcAtk(pc,t2,atk,trn,true); }
+  }
+  bonusTurn(pc,allPcs,mons.filter(m=>m.alive),trn);
+}
+
+function bonusTurn(pc,allPcs,lm,trn) {
+  if (!lm.length) return;
+  if (pc.class==='Cleric') {
+    const swF=pc.features.find(f=>f.name==='Spiritual Weapon');
+    if (swF&&!pc.swActive&&(pc.slots['2']||0)>0) { pc.swActive=true;pc.slots['2']--;pc.slu++; }
+    if (pc.swActive) { const t=bestMonTarget(lm); if(t&&r20()+(swF?.hit_bonus||6)>=t.ac){t.hp=Math.max(0,t.hp-rollDice(swF?.damage||'3d8+3'));if(t.hp===0)t.alive=false;} }
+  }
+  if (pc.class==='Paladin'&&(pc.fu['Lay on Hands']||0)>0) {
+    const ta=allPcs.filter(p=>p.alive&&p.conscious&&p.hp<p.hp_max*.35).sort((a,b)=>a.hp-b.hp)[0];
+    if (ta) { ta.hp=Math.min(ta.hp_max,ta.hp+5);pc.fu['Lay on Hands']--; }
+  }
+}
+
+function monTurn(m,mons,pcs,trn,hardcore) {
+  const lv=pcs.filter(p=>p.alive&&p.conscious);
+  const dy=pcs.filter(p=>p.alive&&!p.conscious&&!p.stable);
+
+  if (hardcore) {
+    // Coordinated AI: focus lowest-HP conscious PC; stomp downed PCs to finish them
+    let tgt=null;
+    if (lv.length) tgt=lv.reduce((a,b)=>a.hp<=b.hp?a:b); // lowest HP conscious
+    const multi=m.multiCount; // no terrain penalty in hardcore
+    let atksLeft=multi;
+    // First spend attacks stomping downed PCs (each stomp = 2 fail)
+    for (const d of dy) {
+      if (atksLeft<=0) break;
+      d.df+=2; if(d.df>=3) d.alive=false;
+      atksLeft--;
+    }
+    // Remaining attacks on focus target
+    for (let i=0;i<atksLeft;i++) {
+      // Re-pick if current target went down mid-flurry
+      const cur=lv.filter(p=>p.alive&&p.conscious);
+      if (!cur.length) break;
+      const ft=tgt&&tgt.alive&&tgt.conscious?tgt:cur.reduce((a,b)=>a.hp<=b.hp?a:b);
+      doMonAtk(m,ft,trn,true);
+    }
+  } else {
+    if (!lv.length) { if(dy.length){dy[0].df+=2;if(dy[0].df>=3)dy[0].alive=false;} return; }
+    // Breath weapon recharge: 33% chance (models recharge 5-6)
+    if (m.breathWeapon&&!m.breathReady&&Math.random()<0.33) m.breathReady=true;
+    // Use breath weapon if available — AOE DEX save hits all conscious PCs
+    if (m.breathReady&&m.breathWeapon) {
+      const bw=m.breathWeapon;
+      for (const pc of lv) {
+        if (!pc.alive||!pc.conscious) continue;
+        const save=r20()+pmod(pc.dex||10);
+        let dmg=rollDice(bw.damage);
+        if (save>=bw.dc) dmg=Math.floor(dmg/2);
+        if (pc.resistNonPsychic&&bw.dmgType!=='psychic') dmg=Math.floor(dmg/2);
+        pc.hp=Math.max(0,pc.hp-dmg);
+        if (pc.hp===0) { if(pc.conscious){pc.conscious=false;pc.ds=0;pc.df=0;pc.td=(pc.td||0)+1;} else{pc.df++;if(pc.df>=3)pc.alive=false;} }
+      }
+      m.breathReady=false;
+      return;
+    }
+    const tgt=bestPcTarget(pcs); if(!tgt) return;
+    const multi=trn.diffTerrain&&Math.random()<.25?Math.max(1,m.multiCount-1):m.multiCount;
+    for (let i=0;i<multi;i++) { const cur=(tgt&&tgt.alive&&tgt.conscious)?tgt:bestPcTarget(pcs); if(!cur) break; doMonAtk(m,cur,trn,false); }
+  }
+}
+
+function runCombat(pCfg,enc,trn,hardcore) {
+  const pcs=clonePartyForRun(pCfg), mons=cloneMonstersForRun(enc);
+  if (!mons.length) return {won:true,rounds:0,pcs,killed:0};
+  const order=[
+    ...pcs.map(p=>({t:'pc',ref:p,init:r20()+(p.initiative_bonus||0)})),
+    ...mons.map(m=>({t:'m',ref:m,init:r20()+m.initiative_bonus}))
+  ].sort((a,b)=>b.init-a.init||(Math.random()>.5?1:-1));
+  for (let rnd=1;rnd<=20;rnd++) {
+    for (const cb of order) {
+      const anyLive=pcs.some(p=>p.alive&&p.conscious);
+      const monsDead=mons.every(m=>!m.alive);
+      if (monsDead) return {won:true,rounds:rnd,pcs,killed:mons.filter(m=>!m.alive).length};
+      if (!anyLive&&!pcs.some(p=>p.alive&&!p.conscious&&!p.stable))
+        return {won:false,rounds:rnd,pcs,killed:mons.filter(m=>!m.alive).length};
+      if (cb.t==='pc') { const pc=cb.ref; if(!pc.alive)continue; pc._round=rnd; if(!pc.conscious){if(!pc.stable)deathSave(pc);continue;} pcTurn(pc,pcs,mons,trn); }
+      else { const m=cb.ref; if(!m.alive)continue; monTurn(m,mons,pcs,trn,hardcore); }
+    }
+    // Legendary actions: legendary monsters spend their full 3-action pool (3 bonus attacks per round)
+    for (const m of mons) {
+      if (!m.alive||!m.legendaryActionCount) continue;
+      for (let la=0;la<m.legendaryActionCount;la++) {
+        const lt=bestPcTarget(pcs); if(!lt) break;
+        doMonAtk(m,lt,trn,hardcore);
+      }
+    }
+  }
+  const surv=pcs.some(p=>p.alive&&p.conscious);
+  return {won:surv,rounds:20,pcs,killed:mons.filter(m=>!m.alive).length};
+}
+
+function runCombatVerbose(pCfg,enc,trn,hardcore) {
+  const pcs=clonePartyForRun(pCfg), mons=cloneMonstersForRun(enc);
+  // Give monsters unique display names when multiple of same type
+  const nameCounts={};
+  mons.forEach(m=>{ nameCounts[m.name]=(nameCounts[m.name]||0)+1; });
+  const nameSeen={};
+  mons.forEach(m=>{
+    if (nameCounts[m.name]>1) {
+      nameSeen[m.name]=(nameSeen[m.name]||0)+1;
+      m.displayName=m.name+(nameSeen[m.name]>1?' '+nameSeen[m.name]:'');
+    } else m.displayName=m.name;
+  });
+  const log=[];
+  if (!mons.length) return {log,result:{won:true,rounds:0,pcs,killed:0}};
+  const order=[
+    ...pcs.map(p=>({t:'pc',ref:p,init:r20()+(p.initiative_bonus||0)})),
+    ...mons.map(m=>({t:'m',ref:m,init:r20()+m.initiative_bonus}))
+  ].sort((a,b)=>b.init-a.init||(Math.random()>.5?1:-1));
+  log.push({type:'initiative',order:order.map(cb=>({name:cb.t==='pc'?cb.ref.name:cb.ref.displayName,init:cb.init,side:cb.t}))});
+  for (let rnd=1;rnd<=20;rnd++) {
+    log.push({type:'round_start',round:rnd});
+    for (const cb of order) {
+      const anyLive=pcs.some(p=>p.alive&&p.conscious);
+      const monsDead=mons.every(m=>!m.alive);
+      if (monsDead) return {log,result:{won:true,rounds:rnd,pcs,killed:mons.filter(m=>!m.alive).length}};
+      if (!anyLive&&!pcs.some(p=>p.alive&&!p.conscious&&!p.stable))
+        return {log,result:{won:false,rounds:rnd,pcs,killed:mons.filter(m=>!m.alive).length}};
+      if (cb.t==='pc') {
+        const pc=cb.ref; if(!pc.alive) continue;
+        if (!pc.conscious) {
+          if (pc.stable) { continue; } // stable = out of combat, no more death saves
+          const ds=Math.floor(Math.random()*20)+1;
+          const dsPass=ds>=10; const dsCrit=(ds===20);
+          if (dsCrit) { pc.conscious=true; pc.hp=1; log.push({type:'death_save',actor:pc.name,roll:ds,result:'stabilize_crit',round:rnd}); }
+          else if (ds===1) { pc.dsF=(pc.dsF||0)+2; if(pc.dsF>=3){pc.alive=false;log.push({type:'dead',actor:pc.name,round:rnd});} else log.push({type:'death_save',actor:pc.name,roll:ds,result:'fail',round:rnd}); }
+          else if (!dsPass) { pc.dsF=(pc.dsF||0)+1; if(pc.dsF>=3){pc.alive=false;log.push({type:'dead',actor:pc.name,round:rnd});} else log.push({type:'death_save',actor:pc.name,roll:ds,result:'fail',round:rnd}); }
+          else { pc.dsP=(pc.dsP||0)+1; if(pc.dsP>=3){pc.stable=true;log.push({type:'death_save',actor:pc.name,roll:ds,result:'stable',round:rnd});} else log.push({type:'death_save',actor:pc.name,roll:ds,result:'pass',round:rnd}); }
+          continue;
+        }
+        // PC attacks — log the first attack action
+        const liveMons=mons.filter(m=>m.alive);
+        if (liveMons.length&&pc.attacks&&pc.attacks.length) {
+          const tgt=liveMons[0];
+          const atk=pc.attacks[0];
+          const roll=r20(); const hit_bonus=atk.hit_bonus||0;
+          const total=roll+hit_bonus; const crit=(roll===20);
+          const hits=crit||(total>=tgt.ac);
+          let dmg=0;
+          if (hits) { dmg=rollDice(atk.damage); if(crit) dmg+=rollDice(atk.damage); }
+          log.push({type:'attack',round:rnd,actor:pc.name,actorType:'pc',target:tgt.displayName,roll,bonus:hit_bonus,total,vs:tgt.ac,hit:hits,crit,damage:dmg,targetHpBefore:tgt.hp,targetHpAfter:Math.max(0,tgt.hp-(hits?dmg:0))});
+        }
+        pcTurn(pc,pcs,mons,trn);
+        // Check if any monster just died
+        mons.forEach(m=>{ if(!m.alive&&!m._loggedDead){m._loggedDead=true;log.push({type:'monster_down',actor:m.displayName,round:rnd});} });
+      } else {
+        const m=cb.ref; if(!m.alive) continue;
+        const livePCs=pcs.filter(p=>p.alive&&p.conscious);
+        if (livePCs.length&&m.attacks&&m.attacks.length) {
+          const tgt=hardcore?livePCs.reduce((a,b)=>a.hp<b.hp?a:b):livePCs[Math.floor(Math.random()*livePCs.length)];
+          const atk=m.attacks[0];
+          const roll=r20(); const total=roll+(atk.hit_bonus||0);
+          const crit=(roll===20); const hits=crit||(total>=tgt.ac);
+          let dmg=0; if(hits){dmg=rollDice(atk.damage);if(crit)dmg+=rollDice(atk.damage);}
+          log.push({type:'attack',round:rnd,actor:m.displayName,actorType:'monster',target:tgt.name,roll,bonus:atk.hit_bonus||0,total,vs:tgt.ac,hit:hits,crit,damage:dmg,targetHpBefore:tgt.hp,targetHpAfter:Math.max(0,tgt.hp-(hits?dmg:0))});
+        }
+        monTurn(m,mons,pcs,trn,hardcore);
+        pcs.forEach(pc=>{ if(pc.alive&&!pc.conscious&&!pc._loggedDown){pc._loggedDown=true;log.push({type:'pc_down',actor:pc.name,round:rnd});} if(!pc.alive&&!pc._loggedDead){pc._loggedDead=true;log.push({type:'pc_dead',actor:pc.name,round:rnd});} });
+      }
+    }
+    // Legendary actions (end of round) — full 3-action pool, logged
+    for (const m of mons) {
+      if (!m.alive||!m.legendaryActionCount) continue;
+      for (let la=0;la<m.legendaryActionCount;la++) {
+        const lt=bestPcTarget(pcs); if(!lt) break;
+        const atk=m.attacks[0];
+        const roll=r20(); const total=roll+(atk.hit_bonus||0);
+        const crit=(roll===20); const hits=crit||(total>=lt.ac);
+        let dmg=0; if(hits){dmg=rollDice(atk.damage);if(crit)dmg+=rollDice(atk.damage);}
+        log.push({type:'legendary_action',round:rnd,actor:m.displayName,actorType:'monster',target:lt.name,roll,bonus:atk.hit_bonus||0,total,vs:lt.ac,hit:hits,crit,damage:dmg,targetHpBefore:lt.hp,targetHpAfter:Math.max(0,lt.hp-(hits?dmg:0))});
+        doMonAtk(m,lt,trn,hardcore);
+        pcs.forEach(pc=>{ if(pc.alive&&!pc.conscious&&!pc._loggedDown){pc._loggedDown=true;log.push({type:'pc_down',actor:pc.name,round:rnd});} if(!pc.alive&&!pc._loggedDead){pc._loggedDead=true;log.push({type:'pc_dead',actor:pc.name,round:rnd});} });
+      }
+    }
+  }
+  const surv=pcs.some(p=>p.alive&&p.conscious);
+  return {log,result:{won:surv,rounds:20,pcs,killed:mons.filter(m=>!m.alive).length}};
+}
+
+function simMap(pCfg,enc,trn,N,hardcore) {
+  const st=pCfg.map(p=>({name:p.name,class:p.class,surv:0,hpS:0,deaths:0,downed:0,slots:0}));
+  let wins=0,tpks=0,rndS=0,kS=0;
+  for (let i=0;i<N;i++) {
+    const r=runCombat(pCfg,enc,trn,hardcore);
+    if (r.won) wins++; else if(r.pcs.every(p=>!p.alive)) tpks++;
+    rndS+=r.rounds; kS+=r.killed;
+    r.pcs.forEach((pc,j)=>{
+      if (j>=st.length) return;
+      if (pc.alive&&pc.conscious){st[j].surv++;st[j].hpS+=pc.hp;}
+      if (!pc.alive) st[j].deaths++;
+      st[j].downed+=pc.td||0; st[j].slots+=pc.slu||0;
+    });
+  }
+  // One verbose replay for the combat log
+  const verbose=runCombatVerbose(pCfg,enc,trn,hardcore);
+  return {wins,losses:N-wins,tpks,avgRounds:rndS/N,avgKilled:kS/N,st,N,verboseLog:verbose.log,verboseResult:verbose.result};
+}
+
+// ============================================================
+// RUN
+// ============================================================
+function startSim() {
+  if (!party.length) { alert('Add at least one PC.'); return; }
+  const empty=MAP_KEYS.filter(k=>!encounters[k].length);
+  if (empty.length) {
+    if (!confirm('No monsters on: '+empty.map(k=>MAP_CFG[k].name).join(', ')+'. Auto-fill now?')) return;
+    empty.forEach(autoFill);
+    if (MAP_KEYS.some(k=>!encounters[k].length)) { alert('Auto-fill failed. Try manually adding monsters.'); return; }
+  }
+  const N=parseInt(document.getElementById('numSel')?.value)||1000;
+  const hardcore=document.getElementById('hardcoreChk')?.checked||false;
+  document.getElementById('runBtn').disabled=true;
+  document.getElementById('progSection').style.display='block';
+  prog(0,N*3,'Preparing...');
+  setTimeout(()=>{
+    const res={};
+    MAP_KEYS.forEach((id,i)=>{
+      res[id]=simMap(party,encounters[id],MAP_CFG[id],N,hardcore);
+      prog((i+1)*N,N*3,'Simulating '+MAP_CFG[id].name+'...');
+    });
+    lastResults={res,party:party.map(deepClonePC),N,hardcore};
+    document.getElementById('runBtn').disabled=false;
+    document.getElementById('progSection').style.display='none';
+    renderResults(lastResults);
+    switchTab('results');
+  },30);
+}
+function prog(c,t,lbl) {
+  const b=document.getElementById('progBar'),l=document.getElementById('progLabel');
+  if(b) b.style.width=(c/t*100)+'%';
+  if(l) l.textContent=lbl||(c+'/'+t+' combats');
+}
+
+// ============================================================
+// RESULTS
+// ============================================================
+function pct(n,d) { return d?(n/d*100).toFixed(1)+'%':'0%'; }
+function renderResults(data) {
+  const {res,party:p,N,hardcore}=data;
+  document.getElementById('noResults').style.display='none';
+  document.getElementById('resultsContent').style.display='block';
+  const hcBadge=document.getElementById('hardcoreBadge');
+  if(hcBadge) hcBadge.style.display=hardcore?'inline-block':'none';
+  const totalW=MAP_KEYS.reduce((s,k)=>s+res[k].wins,0), total=N*3;
+  const avgR=MAP_KEYS.reduce((s,k)=>s+res[k].avgRounds,0)/3;
+  const totalTPK=MAP_KEYS.reduce((s,k)=>s+res[k].tpks,0);
+  document.getElementById('sumCards').innerHTML=`
+    <div class="sum-card"><div class="sum-val tg">${pct(totalW,total)}</div><div class="sum-label">Overall Win Rate</div></div>
+    <div class="sum-card"><div class="sum-val">${avgR.toFixed(1)}</div><div class="sum-label">Avg Rounds</div></div>
+    <div class="sum-card"><div class="sum-val tr">${pct(totalTPK,total)}</div><div class="sum-label">TPK Rate</div></div>
+    <div class="sum-card"><div class="sum-val tm">${N}</div><div class="sum-label">Runs per Map</div></div>`;
+  document.getElementById('mapTbl').innerHTML=MAP_KEYS.map((id,i)=>{
+    const r=res[id]; const wp=r.wins/N*100;
+    const cl=wp>=60?'cg':wp>=40?'cgold':'cr';
+    const as=wp>=80?'Manageable':wp>=60?'Challenging':wp>=40?'Dangerous':'Deadly';
+    return `<tr><td class="bold">${['🌾 Open Field','💀 Dungeon','🌲 Forest'][i]}</td><td class="${cl} bold">${wp.toFixed(1)}%</td><td class="cm">${pct(r.tpks,N)}</td><td>${r.avgRounds.toFixed(1)}</td><td>${r.avgKilled.toFixed(1)}</td><td class="${cl}">${as}</td></tr>`;
+  }).join('');
+  const combined=p.map((pc,i)=>{
+    const s=MAP_KEYS.map(k=>res[k].st[i]||{});
+    return {name:pc.name,class:pc.class,surv:s.reduce((a,x)=>a+(x.surv||0),0),hpS:s.reduce((a,x)=>a+(x.hpS||0),0),deaths:s.reduce((a,x)=>a+(x.deaths||0),0),downed:s.reduce((a,x)=>a+(x.downed||0),0),slots:s.reduce((a,x)=>a+(x.slots||0),0)};
+  });
+  document.getElementById('pcTbl').innerHTML=combined.map(pc=>{
+    const sp=pc.surv/total*100; const cl=sp>=75?'cg':sp>=50?'cgold':'cr';
+    const avgHP=pc.surv?(pc.hpS/pc.surv).toFixed(0):0;
+    return `<tr><td class="bold">${pc.name}</td><td class="cm">${pc.class}</td><td class="${cl} bold">${sp.toFixed(1)}%</td><td class="cm">${pc.deaths}</td><td>${avgHP} HP</td><td class="cm">${(pc.downed/total).toFixed(2)}</td><td class="cm">${pc.slots?(pc.slots/total).toFixed(1)+'/run':'—'}</td></tr>`;
+  }).join('');
+  renderCharts(res,p,N);
+  renderCombatLog(data);
+  renderMonCompendium(data);
+}
+
+// ============================================================
+// COMBAT LOG
+// ============================================================
+let _combatLogOpen=false;
+function toggleCombatLog() {
+  _combatLogOpen=!_combatLogOpen;
+  const body=document.getElementById('combatLogBody');
+  const arrow=document.getElementById('combatLogArrow');
+  if(body) body.style.display=_combatLogOpen?'block':'none';
+  if(arrow) arrow.style.transform=_combatLogOpen?'rotate(90deg)':'rotate(0deg)';
+}
+function fmtLogEvent(evt) {
+  const {type,round,actor,actorType,target,roll,bonus,total,vs,hit,crit,damage,targetHpBefore,targetHpAfter}=evt;
+  if (type==='round_start') return `<div style="color:var(--accent);font-weight:700;margin:8px 0 3px;border-bottom:1px solid var(--border);padding-bottom:2px">Round ${evt.round}</div>`;
+  if (type==='initiative') {
+    const order=evt.order.map(o=>`<span style="color:${o.side==='pc'?'#7c6af7':'#e05c5c'}">${o.name}</span> (${o.init})`).join(', ');
+    return `<div style="color:var(--text2);font-size:11px;margin-bottom:6px">Initiative: ${order}</div>`;
+  }
+  if (type==='attack') {
+    const pcColor='#7c6af7'; const monColor='#e05c5c';
+    const actorColor=actorType==='pc'?pcColor:monColor;
+    const hitStr=crit?`<span style="color:#f0b429;font-weight:700">CRIT!</span> deals <b>${damage}</b> dmg`:
+                 hit?`hits for <b>${damage}</b> dmg`:
+                 `<span style="color:var(--text3)">misses</span>`;
+    const rollStr=`[${roll}${bonus>=0?'+':''}${bonus}=${total} vs AC ${vs}]`;
+    return `<div style="font-size:12px;margin:1px 0"><span style="color:${actorColor};font-weight:600">${actor}</span> → <span style="font-style:italic">${target}</span> ${hitStr} <span style="color:var(--text3);font-size:10px">${rollStr}</span>${targetHpAfter!==undefined?` <span style="color:var(--text3);font-size:10px">(HP: ${targetHpBefore}→${targetHpAfter})</span>`:''}</div>`;
+  }
+  if (type==='legendary_action') {
+    const hitStr=crit?`<span style="color:#f0b429;font-weight:700">CRIT!</span> deals <b>${damage}</b> dmg`:
+                 hit?`hits for <b>${damage}</b> dmg`:
+                 `<span style="color:var(--text3)">misses</span>`;
+    const rollStr=`[${roll}${bonus>=0?'+':''}${bonus}=${total} vs AC ${vs}]`;
+    return `<div style="font-size:12px;margin:1px 0;padding-left:10px;border-left:2px solid var(--gold)"><span style="color:var(--gold);font-size:10px;font-weight:700">⭐ LEG.</span> <span style="color:#e05c5c;font-weight:600">${actor}</span> → <span style="font-style:italic">${target}</span> ${hitStr} <span style="color:var(--text3);font-size:10px">${rollStr}</span>${targetHpAfter!==undefined?` <span style="color:var(--text3);font-size:10px">(HP: ${targetHpBefore}→${targetHpAfter})</span>`:''}</div>`;
+  }
+  if (type==='pc_down') return `<div style="color:#e05c5c;font-size:12px;margin:1px 0">💀 <b>${actor}</b> falls unconscious!</div>`;
+  if (type==='pc_dead') return `<div style="color:#e05c5c;font-size:12px;font-weight:700;margin:1px 0">☠ <b>${actor}</b> is dead!</div>`;
+  if (type==='monster_down') return `<div style="color:#4caf7d;font-size:12px;margin:1px 0">⚔ <b>${actor}</b> is slain!</div>`;
+  if (type==='death_save') {
+    const res=evt.result;
+    const col=res==='stable'||res==='stabilize_crit'?'#4caf7d':res==='pass'?'#f0b429':'#e05c5c';
+    const txt=res==='stabilize_crit'?'stabilizes (nat 20!)':res==='stable'?'stabilizes':res==='pass'?`passes (${evt.roll})`:res==='fail'?`fails (${evt.roll})`:'';
+    return `<div style="color:${col};font-size:11px;margin:1px 0">💫 <b>${actor}</b> death save: ${txt}</div>`;
+  }
+  return '';
+}
+function renderCombatLog(data) {
+  const {res}=data;
+  const tabsEl=document.getElementById('combatLogTabs');
+  const contentEl=document.getElementById('combatLogContent');
+  if (!tabsEl||!contentEl) return;
+  const mapNames={['open-field']:'🌾 Open Field',dungeon:'💀 Dungeon',forest:'🌲 Forest'};
+  tabsEl.innerHTML=MAP_KEYS.map((id,i)=>`<button class="btn btn-sm ${i===0?'btn-primary':'btn-secondary'}" onclick="showLogTab('${id}',this)" data-logid="${id}">${mapNames[id]||id}</button>`).join('');
+  const logs={};
+  MAP_KEYS.forEach(id=>{ logs[id]=res[id].verboseLog||[]; });
+  window._verboseLogs=logs;
+  showLogTab(MAP_KEYS[0]);
+}
+function showLogTab(mapId, btn) {
+  if (btn) { document.querySelectorAll('#combatLogTabs button').forEach(b=>b.classList.replace('btn-primary','btn-secondary')); btn.classList.replace('btn-secondary','btn-primary'); }
+  const log=window._verboseLogs?.[mapId]||[];
+  const contentEl=document.getElementById('combatLogContent');
+  if (!contentEl) return;
+  if (!log.length) { contentEl.innerHTML='<div style="color:var(--text2);font-size:12px">No combat log available.</div>'; return; }
+  const html=log.map(fmtLogEvent).filter(Boolean).join('');
+  contentEl.innerHTML=`<div style="background:var(--card2);border:1px solid var(--border);border-radius:6px;padding:12px;max-height:400px;overflow-y:auto;font-family:monospace;font-size:12px;line-height:1.5">${html}</div>`;
+}
+
+// ============================================================
+// MONSTER COMPENDIUM
+// ============================================================
+function renderMonCompendium(data) {
+  const {res}=data;
+  const el=document.getElementById('monCompendiumCards');
+  if (!el) return;
+  const seen=new Set();
+  const unique=[];
+  MAP_KEYS.forEach(id=>{
+    (encounters[id]||[]).forEach(e=>{
+      if (e.data&&!seen.has(e.name)) { seen.add(e.name); unique.push(e.data); }
+    });
+  });
+  if (!unique.length) { el.innerHTML='<div style="color:var(--text2)">Run the simulation first to see monster stat blocks here.</div>'; return; }
+  el.innerHTML=unique.map(m=>buildStatBlockCard(m,false)).join('');
+}
+function printStatBlocks() {
+  const seen=new Set(); const unique=[];
+  MAP_KEYS.forEach(id=>{
+    (encounters[id]||[]).forEach(e=>{ if(e.data&&!seen.has(e.name)){seen.add(e.name);unique.push(e.data);} });
+  });
+  if (!unique.length) { alert('No monsters in encounters to print.'); return; }
+  const css=`body{font-family:Georgia,serif;color:#000;background:#fff;padding:20px}
+    .sb{max-width:420px;border:2px solid #8b1a1a;border-radius:4px;padding:12px;margin:0 0 24px;page-break-inside:avoid}
+    .sb-name{font-size:18px;font-weight:700;color:#8b1a1a}.sb-sub{font-size:12px;font-style:italic}
+    .sb-div{border-top:2px solid #8b1a1a;border-bottom:2px solid #8b1a1a;padding:3px 0;margin:6px 0;font-size:12px}
+    .sb-prop{font-size:12px;margin:2px 0}.sb-prop b{color:#8b1a1a}
+    .sb-stat-row{display:flex;margin:6px 0}.sb-stat-box{flex:1;text-align:center;font-size:11px}
+    .sb-stat-box .sv{font-weight:700;font-size:14px}.sb-section{font-size:12px;margin:4px 0}
+    .sb-section-hdr{font-size:13px;font-variant:small-caps;font-weight:700;color:#8b1a1a;border-bottom:1px solid #8b1a1a;margin:8px 0 4px}
+    .sb-entry{margin-bottom:4px}.sb-entry b{font-style:italic}
+    @media print{.no-print{display:none}body{padding:0}}`;
+  const body=unique.map(m=>buildPrintStatBlock(m)).join('');
+  const w=window.open('','_blank');
+  w.document.write(`<!DOCTYPE html><html><head><title>Stat Blocks</title><style>${css}</style></head><body><div class="no-print" style="margin-bottom:16px"><button onclick="window.print()">🖨 Print</button></div>${body}</body></html>`);
+  w.document.close();
+}
+function buildPrintStatBlock(m) {
+  const mod=s=>Math.floor((s-10)/2); const sgn=n=>(n>=0?'+':'')+n;
+  const sz=SIZE_LABEL[m.size]||m.size||'Medium';
+  const al=alignLabel(m.alignment||[]);
+  const sp=speedLabel(m.speed||{walk:30});
+  const cr=crLabel(m.cr);
+  const xpStr=m.xp?`(${m.xp} XP)`:'';
+  const saves=Object.entries(m.saves||{}).map(([k,v])=>`${k[0].toUpperCase()+k.slice(1)} ${v}`).join(', ');
+  const skills=Object.entries(m.skills||{}).map(([k,v])=>`${k[0].toUpperCase()+k.slice(1)} ${v}`).join(', ');
+  const mkSection=(title,items)=>items.length?`<div class="sb-section-hdr">${title}</div>${items.map(it=>`<div class="sb-entry"><b>${it.name}.</b> ${it.text}</div>`).join('')}`:'';
+  return `<div class="sb">
+  <div class="sb-name">${m.name}</div><div class="sb-sub">${sz} ${m.type||''}${al?', '+al:''}</div>
+  <div class="sb-div"><span class="sb-prop"><b>Armor Class</b> ${m.ac}</span> &nbsp; <span class="sb-prop"><b>Hit Points</b> ${m.hp_max}</span> &nbsp; <span class="sb-prop"><b>Speed</b> ${sp}</span></div>
+  <div class="sb-stat-row">${['STR','DEX','CON','INT','WIS','CHA'].map((s,i)=>{const val=[m.str||10,m.dex||10,m.con||10,m.int||10,m.wis||10,m.cha||10][i];return `<div class="sb-stat-box"><div>${s}</div><div class="sv">${val}</div><div>${sgn(mod(val))}</div></div>`;}).join('')}</div>
+  <div class="sb-div">${saves?`<span class="sb-prop"><b>Saving Throws</b> ${saves}</span><br>`:''}${skills?`<span class="sb-prop"><b>Skills</b> ${skills}</span><br>`:''}${m.resistances?.length?`<span class="sb-prop"><b>Resistances</b> ${m.resistances.join(', ')}</span><br>`:''}${m.immunities?.length?`<span class="sb-prop"><b>Immunities</b> ${m.immunities.join(', ')}</span><br>`:''}${m.senses?.length?`<span class="sb-prop"><b>Senses</b> ${Array.isArray(m.senses)?m.senses.join(', '):m.senses}</span><br>`:''}${m.languages?.length?`<span class="sb-prop"><b>Languages</b> ${Array.isArray(m.languages)?m.languages.join(', '):m.languages}</span><br>`:''}
+  <span class="sb-prop"><b>CR</b> ${cr} ${xpStr}</span></div>
+  ${mkSection('Traits',m.traits||[])}${mkSection('Actions',m.allActions||[])}${mkSection('Reactions',m.reactions||[])}${mkSection('Legendary Actions',m.legendaryActions||[])}
+  </div>`;
+}
+
+// ============================================================
+// CHARTS
+// ============================================================
+const MC=['rgba(232,168,40,.8)','rgba(154,106,176,.8)','rgba(90,158,106,.8)'];
+const MB=['#e8a828','#9a6ab0','#5a9e6a'];
+const PC=['rgba(200,135,58,.8)','rgba(90,138,176,.8)','rgba(232,168,40,.8)','rgba(90,158,106,.8)','rgba(200,86,58,.8)','rgba(154,106,176,.8)'];
+const PB=['#c8873a','#5a8ab0','#e8a828','#5a9e6a','#c8563a','#9a6ab0'];
+const CO={responsive:true,maintainAspectRatio:true,plugins:{legend:{labels:{color:'#9a8768',boxWidth:12,font:{size:12}}}},scales:{y:{beginAtZero:true,ticks:{color:'#9a8768'},grid:{color:'#3c2e1c'}},x:{ticks:{color:'#9a8768'},grid:{display:false}}}};
+function renderCharts(res,p,N) {
+  Object.values(charts).forEach(c=>c.destroy()); charts={};
+  function mk(id,type,data,opts) { const el=document.getElementById(id); if(el) charts[id]=new Chart(el.getContext('2d'),{type,data,options:{...CO,...opts}}); }
+  mk('cWin','bar',{labels:MAP_NAMES,datasets:[{label:'Win %',data:MAP_KEYS.map(k=>(res[k].wins/N*100).toFixed(1)),backgroundColor:MC,borderColor:MB,borderWidth:1}]},{plugins:{legend:{display:false}},scales:{y:{...CO.scales.y,max:100},x:CO.scales.x}});
+  mk('cSurv','bar',{labels:MAP_NAMES,datasets:p.map((pc,i)=>({label:pc.name,data:MAP_KEYS.map(k=>{const s=res[k].st[i];return s?(s.surv/N*100).toFixed(1):0;}),backgroundColor:PC[i]||PC[0],borderColor:PB[i]||PB[0],borderWidth:1}))},{scales:{y:{...CO.scales.y,max:100},x:CO.scales.x}});
+  mk('cRnd','bar',{labels:MAP_NAMES,datasets:[{label:'Avg Rounds',data:MAP_KEYS.map(k=>res[k].avgRounds.toFixed(1)),backgroundColor:MC,borderColor:MB,borderWidth:1}]},{plugins:{legend:{display:false}}});
+  mk('cHP','bar',{labels:MAP_NAMES,datasets:p.map((pc,i)=>({label:pc.name,data:MAP_KEYS.map(k=>{const s=res[k].st[i];return s&&s.surv?(s.hpS/s.surv).toFixed(0):0;}),backgroundColor:PC[i]||PC[0],borderColor:PB[i]||PB[0],borderWidth:1}))},{});
+}
+
+// ============================================================
+// EXPORT
+// ============================================================
+function exportJSON() { if(!lastResults)return; dl('dnd-sim.json',JSON.stringify(lastResults,null,2),'application/json'); }
+function exportCSV() {
+  if(!lastResults)return;
+  const{res,party:p,N}=lastResults;
+  let csv='Map,Win Rate,TPK Rate,Avg Rounds,Avg Monsters Killed\n';
+  MAP_KEYS.forEach((k,i)=>{const r=res[k];csv+=`${MAP_NAMES[i]},${pct(r.wins,N)},${pct(r.tpks,N)},${r.avgRounds.toFixed(1)},${r.avgKilled.toFixed(1)}\n`;});
+  csv+='\nCharacter,Class,Overall Survival,Deaths,Avg HP Remaining\n';
+  p.forEach((pc,i)=>{const s=MAP_KEYS.map(k=>res[k].st[i]||{});const surv=s.reduce((a,x)=>a+(x.surv||0),0),hpS=s.reduce((a,x)=>a+(x.hpS||0),0),deaths=s.reduce((a,x)=>a+(x.deaths||0),0);csv+=`${pc.name},${pc.class},${pct(surv,N*3)},${deaths},${surv?(hpS/surv).toFixed(0):0}\n`;});
+  dl('dnd-sim.csv',csv,'text/csv');
+}
+function dl(name,content,type) { const a=Object.assign(document.createElement('a'),{href:URL.createObjectURL(new Blob([content],{type})),download:name}); a.click(); URL.revokeObjectURL(a.href); }
+
+// ============================================================
+// UI
+// ============================================================
+function switchTab(name) {
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.toggle('active',b.dataset.tab===name));
+  document.querySelectorAll('.tab-panel').forEach(p=>p.classList.toggle('active',p.id==='tab-'+name));
+}
+function switchMap(mapId) {
+  document.querySelectorAll('.map-tab').forEach(b=>b.classList.toggle('active',b.dataset.map===mapId));
+  document.querySelectorAll('.map-panel').forEach(p=>p.classList.toggle('active',p.id==='map-'+mapId));
+}
+
+// ============================================================
+// MONSTER STAT BLOCK DISPLAY
+// ============================================================
+function openMonStatModal(m) {
+  if (!m) return;
+  document.getElementById('monStatBox').innerHTML = buildStatBlockCard(m, true);
+  document.getElementById('monStatModal').classList.add('open');
+}
+function closeMonStatModal() { document.getElementById('monStatModal').classList.remove('open'); }
+
+function buildStatBlockCard(m, asModal) {
+  const mmod = s => { const n=Math.floor(((s||10)-10)/2); return (n>=0?'+':'')+n; };
+  const STATS=[['str','STR'],['dex','DEX'],['con','CON'],['int','INT'],['wis','WIS'],['cha','CHA']];
+
+  // Ability score boxes
+  const statBoxes = STATS.map(([k,lbl])=>{
+    const v=m[k]||10;
+    return `<div class="msb-stat-box"><div class="msb-stat-lbl">${lbl}</div><div class="msb-stat-val">${v}</div><div class="msb-stat-mod">${mmod(v)}</div></div>`;
+  }).join('');
+
+  // Property lines
+  const lines = [];
+  lines.push(`<div class="msb-prop"><strong>Armor Class</strong> ${m.ac}</div>`);
+  lines.push(`<div class="msb-prop"><strong>Hit Points</strong> ${m.hp_max}</div>`);
+  lines.push(`<div class="msb-prop"><strong>Speed</strong> ${speedLabel(m.speed)}</div>`);
+
+  // Saves
+  const saveKeys=Object.keys(m.saves||{});
+  if (saveKeys.length) lines.push(`<div class="msb-prop"><strong>Saving Throws</strong> ${saveKeys.map(k=>k.charAt(0).toUpperCase()+k.slice(1)+' '+m.saves[k]).join(', ')}</div>`);
+  // Skills
+  const skillKeys=Object.keys(m.skills||{});
+  if (skillKeys.length) lines.push(`<div class="msb-prop"><strong>Skills</strong> ${skillKeys.map(k=>k.charAt(0).toUpperCase()+k.slice(1)+' '+m.skills[k]).join(', ')}</div>`);
+  // Resistances / Immunities / Conditions
+  if (m.resistances?.length) lines.push(`<div class="msb-prop"><strong>Damage Resistances</strong> ${m.resistances.join(', ')}</div>`);
+  if (m.immunities?.length)  lines.push(`<div class="msb-prop"><strong>Damage Immunities</strong> ${m.immunities.join(', ')}</div>`);
+  if (m.conditionImmunes?.length) lines.push(`<div class="msb-prop"><strong>Condition Immunities</strong> ${m.conditionImmunes.join(', ')}</div>`);
+  // Senses / Languages
+  const senses=[...(m.senses||[])];
+  if (m.dex) senses.push('passive Perception '+( 10+Math.floor(((m.wis||10)-10)/2) ));
+  if (senses.length) lines.push(`<div class="msb-prop"><strong>Senses</strong> ${senses.join(', ')}</div>`);
+  if (m.languages?.length) lines.push(`<div class="msb-prop"><strong>Languages</strong> ${Array.isArray(m.languages)?m.languages.join(', '):m.languages}</div>`);
+  lines.push(`<div class="msb-prop"><strong>Challenge</strong> ${crLabel(m.cr)} (${(m.xp||0).toLocaleString()} XP) &nbsp;<span class="txs tm">Prof Bonus +${Math.floor((m.cr-1)/4)+2>2?Math.floor((m.cr-1)/4)+2:2}</span></div>`);
+
+  // Traits
+  const traitsHtml=(m.traits||[]).filter(t=>t.text).map(t=>
+    `<div class="msb-trait"><strong>${t.name}.</strong> ${t.text}</div>`).join('');
+  // Actions
+  const actionsHtml=(m.allActions||[]).filter(a=>a.text).map(a=>
+    `<div class="msb-trait"><strong>${a.name}.</strong> ${a.text}</div>`).join('');
+  // Reactions
+  const reactionsHtml=(m.reactions||[]).filter(r=>r.text).map(r=>
+    `<div class="msb-trait"><strong>${r.name}.</strong> ${r.text}</div>`).join('');
+  // Legendary
+  const legendaryHtml=(m.legendaryActions||[]).filter(l=>l.text).map(l=>
+    `<div class="msb-trait"><strong>${l.name}.</strong> ${l.text}</div>`).join('');
+
+  const closeBtn = asModal ? `<button class="msb-close-btn" onclick="closeMonStatModal()">✕</button>` : '';
+  const wrapper = asModal ? 'div class="msb-inner"' : 'div class="msb-inner" style="padding:16px"';
+
+  return `<${wrapper}>
+    ${closeBtn}
+    <div class="msb-name">${m.name}</div>
+    <div class="msb-sub">${SIZE_LABEL[m.size]||'Medium'} ${m.type}, ${alignLabel(m.alignment)}</div>
+    <div class="msb-divider"></div>
+    ${lines.join('')}
+    <div class="msb-divider"></div>
+    <div class="msb-stat-row">${statBoxes}</div>
+    <div class="msb-divider"></div>
+    ${traitsHtml ? `<div class="msb-section"><div class="msb-sec-title">Traits</div>${traitsHtml}</div>` : ''}
+    ${actionsHtml ? `<div class="msb-section"><div class="msb-sec-title">Actions</div>${actionsHtml}</div>` : ''}
+    ${reactionsHtml ? `<div class="msb-section"><div class="msb-sec-title">Reactions</div>${reactionsHtml}</div>` : ''}
+    ${legendaryHtml ? `<div class="msb-section"><div class="msb-sec-title">Legendary Actions</div>${legendaryHtml}</div>` : ''}
+  </div>`;
+}
+
+// ============================================================
+// STAT BLOCK PARSER
+// ============================================================
+let _sbTargetMap = null;
+function openStatBlockModal(mapId) {
+  _sbTargetMap = mapId;
+  document.getElementById('sbTextarea').value='';
+  document.getElementById('sbPreview').className='sb-preview';
+  document.getElementById('sbMsg').textContent='';
+  document.getElementById('sbMsg').className='import-msg';
+  document.getElementById('sbModal').classList.add('open');
+}
+function closeSBModal() { document.getElementById('sbModal').classList.remove('open'); }
+
+function parseStatBlock(text) {
+  const lines = text.split(/\r?\n/).map(l=>l.trim()).filter(l=>l);
+  if (!lines.length) return null;
+  const res = { name:'', type:'', cr:'1', hp:10, ac:10, hit_bonus:3, damage:'1d6+2', multi:1 };
+
+  // Name: first non-empty line (skip if it's a known header word)
+  const SKIP=/^(tiny|small|medium|large|huge|gargantuan|armor|hit|speed|challenge|str|dex|con|int|wis|cha|actions|reactions|bonus|legendary)/i;
+  for (const l of lines) { if (!SKIP.test(l) && l.length > 1 && l.length < 60) { res.name = l; break; } }
+
+  // Type: line with size keyword
+  const sizeRx=/^(tiny|small|medium|large|huge|gargantuan)\s+(\w+)/i;
+  for (const l of lines) { const m=l.match(sizeRx); if(m){res.type=m[2].toLowerCase();break;} }
+
+  // AC: "Armor Class 15 ..."
+  for (const l of lines) { const m=l.match(/armor\s+class\s+(\d+)/i); if(m){res.ac=+m[1];break;} }
+
+  // HP: "Hit Points 65 (10d8 + 20)" — use the flat number
+  for (const l of lines) { const m=l.match(/hit\s+points\s+(\d+)/i); if(m){res.hp=+m[1];break;} }
+
+  // CR: "Challenge 2 (450 XP)" or "Challenge 1/4 (50 XP)"
+  for (const l of lines) { const m=l.match(/challenge\s+([\d/]+)/i); if(m){res.cr=m[1];break;} }
+
+  // Attacks: find all "Melee/Ranged Weapon Attack: +X to hit"
+  const atkHitRx=/weapon attack:\s*\+(\d+)\s+to hit/ig;
+  const hitBonuses=[];
+  let m;
+  while ((m=atkHitRx.exec(text))!==null) hitBonuses.push(+m[1]);
+  if (hitBonuses.length) res.hit_bonus=Math.max(...hitBonuses);
+
+  // Damage: "Hit: N (XdY + Z)" — take highest average damage attack
+  const dmgRx=/\bhit:\s*\d+\s*\((\d+)(d\d+)(?:\s*([+-]\s*\d+))?\)/ig;
+  const dmgOptions=[];
+  while ((m=dmgRx.exec(text))!==null) {
+    const dc=+m[1], ds=+(m[2].slice(1)), flat=m[3]?+(m[3].replace(/\s/g,'')):(res.hit_bonus-Math.floor((res.cr==='1/8'?.5:res.cr==='1/4'?1:res.cr==='1/2'?2:+res.cr||1)/2));
+    const avg=dc*(ds/2+.5)+(flat||0);
+    dmgOptions.push({str:`${dc}${m[2]}${m[3]?m[3].replace(/\s/g,''):'+'+Math.max(0,res.hit_bonus-res.prof_bonus||2)}`,avg});
+  }
+  // Also catch simple "Hit: N slashing" (no dice)
+  if (!dmgOptions.length) {
+    const flatHit=text.match(/\bhit:\s*(\d+)\b/i);
+    if (flatHit) dmgOptions.push({str:flatHit[1],avg:+flatHit[1]});
+  }
+  if (dmgOptions.length) {
+    dmgOptions.sort((a,b)=>b.avg-a.avg);
+    res.damage = dmgOptions[0].str;
+  }
+
+  // Multiattack count: "makes N attacks" / "makes N melee" / "makes two attacks" etc.
+  const multiRx=/multiattack[^.]*makes\s+(one|two|three|four|five|\d+)\s+(?:weapon\s+)?(?:melee\s+)?attacks?/i;
+  const mAtk=text.match(multiRx);
+  if (mAtk) {
+    const words={one:1,two:2,three:3,four:4,five:5};
+    const v=mAtk[1].toLowerCase();
+    res.multi=words[v]||+v||1;
+  }
+
+  return res;
+}
+
+let _lastSBParsed = null;
+function previewSBParse() {
+  const txt=document.getElementById('sbTextarea').value;
+  const prev=document.getElementById('sbPreview');
+  const msg=document.getElementById('sbMsg');
+  if (!txt.trim()) { prev.className='sb-preview'; _lastSBParsed=null; return; }
+  const r=parseStatBlock(txt);
+  _lastSBParsed=r;
+  if (!r||!r.name) { prev.className='sb-preview'; msg.textContent='Could not detect a stat block.'; msg.className='import-msg err'; return; }
+  msg.textContent=''; msg.className='import-msg';
+  prev.className='sb-preview show';
+  prev.innerHTML=`<div class="bold" style="margin-bottom:6px;color:var(--text)">${r.name} <span class="txs tm">${r.type||'creature'}</span></div>
+  <div class="sb-row">
+    <div class="sb-field">CR <span>${r.cr}</span></div>
+    <div class="sb-field">HP <span>${r.hp}</span></div>
+    <div class="sb-field">AC <span>${r.ac}</span></div>
+    <div class="sb-field">Hit <span>+${r.hit_bonus}</span></div>
+    <div class="sb-field">Damage <span>${r.damage}</span></div>
+    <div class="sb-field">Attacks <span>${r.multi}</span></div>
+  </div>
+  <div class="txs tm" style="margin-top:8px">Review the fields below, then click Fill Form.</div>`;
+}
+
+function applySBParse() {
+  if (!_lastSBParsed||!_sbTargetMap) { document.getElementById('sbMsg').textContent='Nothing to apply.'; document.getElementById('sbMsg').className='import-msg err'; return; }
+  const r=_lastSBParsed; const id=_sbTargetMap;
+  const set=(suffix,val)=>{ const el=document.getElementById(suffix+'-'+id); if(el) el.value=val; };
+  set('cn', r.name);
+  set('ct', r.type||'creature');
+  set('ccr', r.cr);
+  set('chp', r.hp);
+  set('cac', r.ac);
+  set('chit', r.hit_bonus);
+  set('cdmg', r.damage);
+  set('cmul', r.multi);
+  // Open the custom form on target map if not already open
+  const form=document.getElementById('cform-'+id);
+  if (form && !form.classList.contains('open')) form.classList.add('open');
+  closeSBModal();
+}
+
+// ============================================================
+// ROLL20 IMPORT
+// ============================================================
+function openImportModal() {
+  document.getElementById('importModal').classList.add('open');
+  document.getElementById('importMsg').textContent='';
+  document.getElementById('importMsg').className='import-msg';
+}
+function closeImportModal() {
+  document.getElementById('importModal').classList.remove('open');
+}
+function handleImportDrop(e) {
+  e.preventDefault();
+  handleImportFiles(e.dataTransfer.files);
+}
+function handleImportFiles(files) {
+  if (!files||!files.length) return;
+  const readers=[];
+  for (const f of files) readers.push(new Promise(res=>{ const r=new FileReader(); r.onload=e=>res(e.target.result); r.readAsText(f); }));
+  Promise.all(readers).then(texts=>{
+    // Combine multiple files into an array
+    const allChars=[];
+    for (const txt of texts) {
+      try {
+        const d=JSON.parse(txt);
+        if (Array.isArray(d)) allChars.push(...d);
+        else allChars.push(d);
+      } catch(e) { showImportMsg('JSON parse error: '+e.message,'err'); return; }
+    }
+    doImport(allChars);
+  });
+}
+function importFromTextarea() {
+  const txt=document.getElementById('importTextarea').value.trim();
+  if (!txt) { showImportMsg('Paste a Roll20 character JSON first.','err'); return; }
+  let data;
+  try { data=JSON.parse(txt); } catch(e) { showImportMsg('Invalid JSON: '+e.message,'err'); return; }
+  doImport(Array.isArray(data)?data:[data]);
+}
+
+function showImportMsg(msg,cls) {
+  const el=document.getElementById('importMsg');
+  el.textContent=msg; el.className='import-msg '+(cls||'');
+}
+
+function doImport(chars) {
+  if (!chars.length) { showImportMsg('No characters found.','err'); return; }
+  let imported=0, skipped=0;
+  for (const char of chars) {
+    const pc=parseRoll20Char(char);
+    if (!pc) { skipped++; continue; }
+    if (party.length<6) party.push(pc);
+    else { party[party.length-1]=pc; } // Replace last if full
+    applySubclassBonuses(party.indexOf(pc));
+    imported++;
+  }
+  if (imported>0) {
+    renderParty(); updateBudgets();
+    showImportMsg(`Imported ${imported} character${imported>1?'s':''}${skipped?' ('+skipped+' skipped)':''}.`,'ok');
+    setTimeout(closeImportModal,1200);
+  } else {
+    showImportMsg('Could not parse any characters. Is this a Roll20 dnd2024byroll20 export?','err');
+  }
+}
+
+// ---- Spell slot table [level 1-10] ----
+const FULL_CASTERS=['Wizard','Sorcerer','Cleric','Druid','Bard'];
+const HALF_CASTERS=['Paladin','Ranger'];
+const SLOT_TABLE_FULL=[[2],[3],[4,2],[4,3],[4,3,2],[4,3,3],[4,3,3,1],[4,3,3,2],[4,3,3,3,1],[4,3,3,3,2]];
+const SLOT_TABLE_HALF=[[0],[2],[3],[3,2],[4,2],[4,2],[4,3,2],[4,3,2],[4,3,3,1],[4,3,3,2]];
+const SLOT_TABLE_WARLOCK=[[1],[2],[0,2],[0,2],[0,3],[0,3],[0,0,2],[0,0,2],[0,0,0,2],[0,0,0,2]];
+
+function slotTable(cls,lvl) {
+  const idx=Math.max(0,Math.min(lvl,10))-1;
+  let row;
+  if (cls==='Warlock') row=SLOT_TABLE_WARLOCK[idx];
+  else if (HALF_CASTERS.includes(cls)) row=SLOT_TABLE_HALF[idx];
+  else if (FULL_CASTERS.includes(cls)) row=SLOT_TABLE_FULL[idx];
+  else return {};
+  const slots={};
+  if (row) for (let i=0;i<row.length;i++) if(row[i]>0) slots[String(i+1)]=row[i];
+  return slots;
+}
+
+function parseRoll20Char(char) {
+  try {
+    // ---- NAME ----
+    const name=char.character?.attributes?.name || char.name || 'Imported PC';
+
+    // ---- STORE ----
+    let store;
+    const attribs=char.character?.attribs;
+    if (attribs) {
+      const sa=attribs.find(a=>a.name==='store');
+      if (sa) store=typeof sa.current==='string'?JSON.parse(sa.current):sa.current;
+    }
+    // Some exports may place store at top level
+    if (!store && char.store) store=char.store;
+    if (!store) return null;
+
+    const allInts=store.integrants?.integrants||{};
+    const vals=Object.values(allInts).filter(i=>i._enabled!==false);
+
+    // ---- ABILITY SCORES ----
+    const ABILS=['Strength','Dexterity','Constitution','Intelligence','Wisdom','Charisma'];
+    const scores={};
+    for (const ab of ABILS) {
+      const rel=vals.filter(i=>i.type==='Ability Score'&&i.ability===ab);
+      const setV=rel.find(i=>i.calculation==='Set Value');
+      if (setV) { scores[ab]=setV.valueFormula?.flatValue||10; continue; }
+      let tot=0;
+      for (const r of rel) {
+        if (r.calculation==='Set Base'||r.calculation==='Modify') tot+=r.valueFormula?.flatValue||0;
+      }
+      scores[ab]=tot||10;
+    }
+    function mod(s){return Math.floor((s-10)/2);}
+
+    // ---- CLASS & LEVEL ----
+    const classInts=vals.filter(i=>i.type==='Class');
+    const primaryCls=classInts[0]?.name||'Fighter';
+    const lvlInts=vals.filter(i=>i.type==='Class Level');
+    let totalLvl=0;
+    for (const li of lvlInts) totalLvl+=li.level||1;
+    if (!totalLvl) totalLvl=1;
+    const profBonus=Math.floor((totalLvl-1)/4)+2;
+
+    // ---- MAX HP ----
+    const hpInts=vals.filter(i=>i.type==='Hit Points'&&i.hitpointType==='Maximum');
+    let maxHP=0;
+    for (const hi of hpInts) {
+      const fv=hi.valueFormula;
+      if (!fv) continue;
+      if (typeof fv.flatValue==='number') maxHP+=fv.flatValue;
+      if (fv.level?.multiplier) maxHP+=totalLvl*fv.level.multiplier; // Hill Dwarf Tough feat etc
+    }
+    if (maxHP<=0) {
+      const HD={Barbarian:12,Fighter:10,Paladin:10,Ranger:10,Monk:8,Cleric:8,Druid:8,Rogue:8,Bard:8,Warlock:8,Sorcerer:6,Wizard:6};
+      const hd=HD[primaryCls]||8;
+      maxHP=hd+(totalLvl-1)*Math.floor(hd/2+1)+totalLvl*mod(scores['Constitution']);
+    }
+    maxHP=Math.max(1,maxHP);
+
+    // ---- AC ----
+    const acInts=vals.filter(i=>i.type==='Armor Class');
+    let ac=10+mod(scores['Dexterity']);
+    const acBase=acInts.find(i=>i.calculation==='Set Base');
+    if (acBase) {
+      ac=acBase.valueFormula?.flatValue||ac;
+      for (const m of acInts.filter(i=>i.calculation==='Modify')) ac+=m.valueFormula?.flatValue||0;
+    }
+
+    // ---- INITIATIVE ----
+    const initBonus=mod(scores['Dexterity']);
+
+    // ---- ATTACKS ----
+    const atkInts=vals.filter(i=>i.type==='Attack');
+    const attacks=[];
+    for (const atk of atkInts.slice(0,4)) {
+      const ab=atk.attack?.abilityBonus||'Strength';
+      const atkMod=mod(scores[ab]||scores['Strength']);
+      const hitBonus=atkMod+profBonus;
+      // Resolve damage from childIDs
+      let dmgStr='1d6+'+atkMod;
+      try {
+        const cids=atk.childIDs?JSON.parse(atk.childIDs):[];
+        for (const cid of cids) {
+          const di=allInts[cid];
+          if (di?.type==='Damage') {
+            const fv=di.valueFormula||{};
+            const dc=fv.dieCount||1;
+            const ds=fv.diceSize||'d6';
+            const flat=typeof fv.flatValue==='number'?fv.flatValue:atkMod;
+            dmgStr=dc+ds+(flat>=0?'+'+flat:''+flat);
+            break;
+          }
+        }
+      } catch(e){}
+      const atkName=atk.name||(atk.attack?.type==='Ranged'?'Ranged Attack':'Melee Attack');
+      attacks.push({name:atkName,hit_bonus:hitBonus,damage:dmgStr,multi:1});
+    }
+    // Multi-attack from Extra Attack feature
+    const hasExtraAtk=vals.some(i=>(i.type==='Feature'||i.type==='Features')&&/extra attack/i.test(i.name||''));
+    if ((hasExtraAtk||(primaryCls==='Fighter'&&totalLvl>=5)) && attacks.length>0) attacks[0].multi=2;
+    if (!attacks.length) attacks.push({name:'Attack',hit_bonus:profBonus+mod(scores['Strength']),damage:'1d6+'+mod(scores['Strength']),multi:1});
+    // Sneak Attack for Rogue
+    if (primaryCls==='Rogue') {
+      const sneakDice=Math.ceil(totalLvl/2);
+      attacks[0].sneak_attack=sneakDice+'d6';
+    }
+
+    // ---- FEATURES (from Resource integrants) ----
+    const features=[];
+    const resInts=vals.filter(i=>i.type==='Resource');
+    const seenFeat=new Set();
+    for (const r of resInts) {
+      if (!r.name||seenFeat.has(r.name)) continue;
+      seenFeat.add(r.name);
+      const uses=r.maxValueFormula?.flatValue||1;
+      const feat={name:r.name,uses};
+      if (/second wind/i.test(r.name)) feat.heal='1d10+'+totalLvl;
+      features.push(feat);
+      if (features.length>=6) break;
+    }
+    // Add known features not found as resources
+    if (primaryCls==='Fighter') {
+      if (!seenFeat.has('Action Surge')) features.push({name:'Action Surge',uses:1});
+      if (!seenFeat.has('Second Wind')) features.push({name:'Second Wind',uses:1,heal:'1d10+'+totalLvl});
+    }
+
+    // ---- SPELL SLOTS ----
+    const spell_slots=slotTable(primaryCls,totalLvl);
+
+    // ---- SPELL SAVE DC ----
+    const SPELL_ABIL={Wizard:'Intelligence',Sorcerer:'Charisma',Warlock:'Charisma',Cleric:'Wisdom',Druid:'Wisdom',Bard:'Charisma',Paladin:'Charisma',Ranger:'Wisdom'};
+    const spellSaveDC=8+profBonus+mod(scores[SPELL_ABIL[primaryCls]||'Intelligence']);
+
+    const firstSub=(SUBCLASSES[primaryCls]||[])[0]?.name||'';
+    return {name,class:primaryCls,level:totalLvl,hp_max:maxHP,ac,initiative_bonus:initBonus,
+      prof_bonus:profBonus,attacks,features,spell_slots,spell_save_dc:spellSaveDC,saving_throw_profs:[],
+      subclass:firstSub};
+  } catch(e) {
+    console.warn('parseRoll20Char error:',e);
+    return null;
+  }
+}
+
+// ============================================================
+// INIT
+// ============================================================
+document.addEventListener('DOMContentLoaded',()=>{
+  loadSession();
+  party.forEach((_,i)=>applySubclassBonuses(i));
+  renderParty();
+  updateBudgets();
+  // Restore encounter displays, shape chips, and DM notes
+  ['open-field','dungeon','forest'].forEach(id=>{
+    renderEnc(id);
+    setShape(id,encounterShapes[id]||'random');
+    const n=document.getElementById('notes-'+id);
+    if (n) n.value=encounterNotes[id]||'';
+  });
+  loadBestiaries();
+});
+</script>
+
+<!-- Monster Stat Block Viewer -->
+<div class="modal-overlay" id="monStatModal" onclick="if(event.target===this)closeMonStatModal()">
+  <div class="modal-box msb-box" id="monStatBox"></div>
+</div>
+
+<!-- Stat Block Parser Modal -->
+<div class="modal-overlay" id="sbModal" onclick="if(event.target===this)closeSBModal()">
+  <div class="modal-box" style="width:min(620px,95vw)">
+    <div class="modal-title">📋 Parse Stat Block</div>
+    <div class="modal-sub">Copy a stat block from any PDF, D&amp;D Beyond, or sourcebook and paste it below. Works with standard 5e format.</div>
+    <textarea id="sbTextarea" rows="14" placeholder="Paste stat block text here...
+Example:
+
+Bandit Captain
+Medium Humanoid (Any Race), Any Non-lawful Alignment
+Armor Class 15 (studded leather)
+Hit Points 65 (10d8 + 20)
+...
+Challenge 2 (450 XP)
+ACTIONS
+Multiattack. The bandit captain makes three melee attacks...
+Scimitar. Melee Weapon Attack: +5 to hit... Hit: 6 (1d6 + 3) slashing damage." style="margin-bottom:10px;font-family:monospace" oninput="previewSBParse()"></textarea>
+    <div class="sb-preview" id="sbPreview"></div>
+    <div style="display:flex;gap:8px;align-items:center;margin-top:12px">
+      <button class="btn btn-primary" onclick="applySBParse()">Fill Form</button>
+      <button class="btn btn-secondary" onclick="closeSBModal()">Cancel</button>
+      <div class="import-msg" id="sbMsg"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Roll20 Import Modal -->
+<div class="modal-overlay" id="importModal" onclick="if(event.target===this)closeImportModal()">
+  <div class="modal-box">
+    <div class="modal-title">Import Roll20 Character JSON</div>
+    <div class="modal-sub">Supports the <strong>dnd2024byroll20</strong> sheet. Export from Roll20: character sheet → ⋮ menu → Export. Import 1–6 characters at once.</div>
+
+    <div class="modal-drop" id="importDrop" onclick="document.getElementById('importFileInput').click()"
+         ondragover="event.preventDefault();this.classList.add('drag-over')"
+         ondragleave="this.classList.remove('drag-over')"
+         ondrop="this.classList.remove('drag-over');handleImportDrop(event)">
+      <div class="modal-drop-icon">📂</div>
+      <div class="modal-drop-text">Click to choose file(s) or drag &amp; drop<br><span style="font-size:10px;color:var(--text3)">.json files — single character or array of characters</span></div>
+      <input type="file" id="importFileInput" accept=".json" multiple style="display:none" onchange="handleImportFiles(this.files)">
+    </div>
+
+    <div class="modal-or">— or paste JSON below —</div>
+
+    <textarea id="importTextarea" rows="8" placeholder='{"schema_version":1,"character":{...}}  or  [{...},{...}]' style="margin-bottom:10px"></textarea>
+
+    <div style="display:flex;gap:8px;align-items:center">
+      <button class="btn btn-primary" onclick="importFromTextarea()">Import</button>
+      <button class="btn btn-secondary" onclick="closeImportModal()">Cancel</button>
+      <div class="import-msg" id="importMsg"></div>
+    </div>
+  </div>
+</div>
+</body>
+</html>
