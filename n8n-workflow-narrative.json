@@ -1,0 +1,88 @@
+{
+  "name": "DnD Combat Narrative",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "dnd-combat-narrative",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "wh-narr-001",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 300],
+      "webhookId": "dnd-combat-narrative"
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body || $input.first().json;\nconst { monsters, party, terrain, stats, hardcore } = body;\n\nconst td = {\n  'open-field': 'Open Grassland — no cover, full movement, AOE hits all clustered targets',\n  'dungeon': 'Stone Dungeon — 10-ft corridors, AOE limited to adjacent squares, retreat difficult',\n  'forest': 'Dense Forest — half-cover available, difficult terrain, chokepoints'\n};\n\nlet combatText = 'TERRAIN: ' + (td[terrain] || terrain) + '\\n\\n=== MONSTERS ===\\n';\nfor (const m of (monsters || [])) {\n  combatText += '\\n--- ' + m.name + ' (CR ' + m.cr + ') ---\\nHP: ' + m.hp + ' | AC: ' + m.ac + '\\n';\n  combatText += 'STR:' + (m.str||10) + ' DEX:' + (m.dex||10) + ' CON:' + (m.con||10) + ' INT:' + (m.int||10) + ' WIS:' + (m.wis||10) + ' CHA:' + (m.cha||10) + '\\n';\n  if (m.save && Object.keys(m.save).length) combatText += 'Saves: ' + Object.entries(m.save).map(([k,v]) => k.toUpperCase() + ' +' + (v||0)).join(', ') + '\\n';\n  if (m.immune?.length) combatText += 'Damage Immunities: ' + [...m.immune].join(', ') + '\\n';\n  if (m.resist?.length) combatText += 'Resistances: ' + [...m.resist].join(', ') + '\\n';\n  if (m.conditionImmune?.length) combatText += 'Condition Immunities: ' + [...m.conditionImmune].join(', ') + '\\n';\n  if (m.trait?.length) { combatText += 'TRAITS:\\n'; m.trait.forEach(t => combatText += '  ' + t + '\\n'); }\n  if (m.allActions?.length) { combatText += 'ACTIONS:\\n'; m.allActions.forEach(a => combatText += '  ' + a + '\\n'); }\n  if (m.reactions?.length) { combatText += 'REACTIONS:\\n'; m.reactions.forEach(r => combatText += '  ' + r + '\\n'); }\n  if (m.legendaryActions?.length) { combatText += 'LEGENDARY ACTIONS (3 uses/round, spend at end of any other creature\\'s turn):\\n'; m.legendaryActions.forEach(la => combatText += '  ' + la + '\\n'); }\n  if (m.breathWeapon) combatText += 'BREATH WEAPON: ' + m.breathWeapon.name + ' — ' + m.breathWeapon.damage + ' ' + m.breathWeapon.dmgType + ' damage, DC ' + m.breathWeapon.dc + ' DEX save, Recharge 5-6\\n';\n}\ncombatText += '\\n=== PARTY ===\\n';\nfor (const pc of (party || [])) {\n  combatText += '\\n--- ' + pc.name + ' (' + pc.class + ' Lv' + (pc.level||5) + ') ---\\nHP: ' + pc.hp_max + ' | AC: ' + pc.ac + '\\n';\n  combatText += 'Attack: +' + (pc.atk||0) + ' to hit | ' + (pc.dmgDice||'1d8') + '+' + (pc.dmgMod||0) + ' | ' + (pc.multi||1) + ' attacks/turn\\n';\n  if (pc.spellDc) combatText += 'Spell Save DC: ' + pc.spellDc + '\\n';\n  if (pc.subclass) combatText += 'Subclass: ' + pc.subclass + '\\n';\n  if (pc.features?.length) { combatText += 'CLASS FEATURES:\\n'; pc.features.forEach(f => combatText += '  ' + f.name + ': ' + f.uses + ' uses' + (f.damage ? ', ' + f.damage : '') + '\\n'); }\n}\n\n// Build statistical context from 50-run analysis\nlet context = '';\nif (stats) {\n  const winPct = Math.round((stats.winRate || 0) * 100);\n  context = `\\n\\nSTATISTICAL CONTEXT (from 50-run analysis of this exact encounter):\\n`;\n  context += `- Party win rate: ${winPct}% | Average fight length: ${(stats.avgRounds||5).toFixed(1)} rounds | TPK rate: ${Math.round((stats.tpkRate||0)*100)}%\\n`;\n  for (const [name, pc] of Object.entries(stats.pcs || {})) {\n    context += `- ${name}: survived ${Math.round((pc.surv||0)*100)}% of fights, went unconscious ${(pc.downed||0).toFixed(1)}x per fight`;\n    const topFu = Object.entries(pc.fuUsed||{}).filter(([,v])=>v>0.05).sort((a,b)=>b[1]-a[1]).slice(0,3);\n    if (topFu.length) context += `, used: ${topFu.map(([k,v])=>k+' '+v.toFixed(1)+'x').join(', ')}`;\n    context += '\\n';\n  }\n}\n\nconst systemPrompt = `You are a master Dungeon Master writing a vivid, mechanically accurate D&D 5e combat narrative.\\n\\nThe narrative should REFLECT the statistical reality — if the party usually wins, they probably win here too.\\n\\nMECHANICAL RULES TO FOLLOW:\\n- Use ALL monster abilities by name: cast their actual spells, use reactions (Shield, Counterspell, Parry, Opportunity Attacks) when triggered, use ACTUAL legendary action options listed (not generic attacks), breath weapons recharge on 5-6\\n- Show dice rolls: e.g. [d20=17+7=24 vs AC 18, HIT] or [Dex save: d20=8+3=11 vs DC 16, FAIL]\\n- Track HP carefully, mention current HP at key moments\\n- Apply conditions: stunned creatures skip turns, frightened can\\'t approach, prone gives disadvantage/advantage\\n- Death saves: 3 successes = stable, 3 failures = dead, nat 20 = revive at 1 HP\\n\\nWRITING STYLE:\\n- Vivid and dramatic — make each action feel consequential\\n- Show the monsters\\' intelligence and tactics\\n- Highlight character moments: the fighter\\'s desperate surge, the wizard\\'s last spell slot\\n- 600-900 words total`;\n\nconst userMessage = combatText + context + '\\n\\nWrite the battle narrative.';\n\nreturn [{ json: { systemPrompt, userMessage } }];"
+      },
+      "id": "code-narr-001",
+      "name": "Build Narrative Prompt",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.anthropic.com/v1/messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "x-api-key", "value": "YOUR_ANTHROPIC_API_KEY_HERE" },
+            { "name": "anthropic-version", "value": "2023-06-01" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "bodyContentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"claude-sonnet-4-6\",\n  \"max_tokens\": 4000,\n  \"system\": \"{{ $json.systemPrompt }}\",\n  \"messages\": [{\"role\": \"user\", \"content\": \"{{ $json.userMessage }}\"}]\n}"
+      },
+      "id": "http-anthropic-001",
+      "name": "Claude Sonnet Narrative",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $input.first().json;\nconst text = item.content?.[0]?.text || '';\nreturn [{ json: { narrative: text } }];"
+      },
+      "id": "code-narr-002",
+      "name": "Extract Narrative",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              { "name": "Access-Control-Allow-Origin", "value": "*" },
+              { "name": "Content-Type", "value": "application/json" }
+            ]
+          }
+        }
+      },
+      "id": "respond-narr-001",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1120, 300]
+    }
+  ],
+  "connections": {
+    "Webhook": { "main": [[{ "node": "Build Narrative Prompt", "type": "main", "index": 0 }]] },
+    "Build Narrative Prompt": { "main": [[{ "node": "Claude Sonnet Narrative", "type": "main", "index": 0 }]] },
+    "Claude Sonnet Narrative": { "main": [[{ "node": "Extract Narrative", "type": "main", "index": 0 }]] },
+    "Extract Narrative": { "main": [[{ "node": "Respond to Webhook", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1" }
+}

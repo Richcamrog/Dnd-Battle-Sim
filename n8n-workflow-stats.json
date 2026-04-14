@@ -1,0 +1,94 @@
+{
+  "name": "DnD Combat Stats",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "dnd-combat-stats",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "wh-stats-001",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 300],
+      "webhookId": "dnd-combat-stats"
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body || $input.first().json;\nconst { monsters, party, terrain, hardcore } = body;\n\nconst td = {\n  'open-field': 'Open Grassland — no cover, full movement, AOE hits all clustered targets',\n  'dungeon': 'Stone Dungeon — 10-ft corridors, AOE limited to adjacent squares, retreat difficult',\n  'forest': 'Dense Forest — half-cover available, difficult terrain, chokepoints'\n};\n\nlet s = 'TERRAIN: ' + (td[terrain] || terrain) + '\\n\\n=== MONSTERS ===\\n';\nfor (const m of (monsters || [])) {\n  s += '\\n--- ' + m.name + ' (CR ' + m.cr + ') ---\\nHP: ' + m.hp + ' | AC: ' + m.ac + '\\n';\n  s += 'STR:' + (m.str||10) + ' DEX:' + (m.dex||10) + ' CON:' + (m.con||10) + ' INT:' + (m.int||10) + ' WIS:' + (m.wis||10) + ' CHA:' + (m.cha||10) + '\\n';\n  if (m.save && Object.keys(m.save).length) s += 'Saves: ' + Object.entries(m.save).map(([k,v]) => k.toUpperCase() + ' +' + (v||0)).join(', ') + '\\n';\n  if (m.immune?.length) s += 'Damage Immunities: ' + [...m.immune].join(', ') + '\\n';\n  if (m.resist?.length) s += 'Resistances: ' + [...m.resist].join(', ') + '\\n';\n  if (m.conditionImmune?.length) s += 'Condition Immunities: ' + [...m.conditionImmune].join(', ') + '\\n';\n  if (m.trait?.length) { s += 'TRAITS:\\n'; m.trait.forEach(t => s += '  ' + t + '\\n'); }\n  if (m.allActions?.length) { s += 'ACTIONS:\\n'; m.allActions.forEach(a => s += '  ' + a + '\\n'); }\n  if (m.reactions?.length) { s += 'REACTIONS:\\n'; m.reactions.forEach(r => s += '  ' + r + '\\n'); }\n  if (m.legendaryActions?.length) { s += 'LEGENDARY ACTIONS (3 uses/round, spend at end of any other creature\\'s turn):\\n'; m.legendaryActions.forEach(la => s += '  ' + la + '\\n'); }\n  if (m.breathWeapon) s += 'BREATH WEAPON: ' + m.breathWeapon.name + ' — ' + m.breathWeapon.damage + ' ' + m.breathWeapon.dmgType + ' damage, DC ' + m.breathWeapon.dc + ' DEX save, Recharge 5-6\\n';\n}\ns += '\\n=== PARTY ===\\n';\nfor (const pc of (party || [])) {\n  s += '\\n--- ' + pc.name + ' (' + pc.class + ' Lv' + (pc.level||5) + ') ---\\nHP: ' + pc.hp_max + ' | AC: ' + pc.ac + '\\n';\n  s += 'Attack: +' + (pc.atk||0) + ' to hit | ' + (pc.dmgDice||'1d8') + '+' + (pc.dmgMod||0) + ' | ' + (pc.multi||1) + ' attacks/turn\\n';\n  if (pc.spellDc) s += 'Spell Save DC: ' + pc.spellDc + '\\n';\n  if (pc.subclass) s += 'Subclass: ' + pc.subclass + '\\n';\n  if (pc.features?.length) { s += 'CLASS FEATURES:\\n'; pc.features.forEach(f => s += '  ' + f.name + ': ' + f.uses + ' uses' + (f.damage ? ', ' + f.damage : '') + '\\n'); }\n}\n\nconst systemPrompt = `You are a D&D 5e rules engine. Run this combat with MAXIMUM mechanical accuracy.\\n\\nRULES:\\n- Use ALL monster abilities: spells (casters cast their spells!), reactions (Shield, Counterspell, Parry, Opportunity Attacks), ACTUAL legendary action options listed (do NOT just do generic attacks), breath weapons with Recharge 5-6 (roll 1d6 each turn, use on 5-6), lair actions at initiative 20\\n- Monsters use smart tactics: focus fire weakest target, AOE when enemies clustered, use frightening presence, use reactions when triggered\\n- PCs use all class features: spell slots, bonus actions, Action Surge, Rage, Hunter's Mark, etc.\\n- Apply resistances, immunities, conditions (stunned=skip turn, frightened=can't approach, prone=disadvantage+adv against)\\n- Death saves: nat20=wake at 1HP, nat1=2 failures, 10+=1 success, 3 successes=stable (no more saves), 3 failures=dead\\n\\nOUTPUT FORMAT — output ONLY this block, no other text:\\n[RESULT]\\nOUTCOME: WIN|LOSS|TPK\\nROUNDS: <number>\\nMONSTERS_KILLED: <killed>/<total>\\n<one line per PC>\\nPC_<NAME>: ALIVE|DEAD|STABLE|HP:<remaining>|DOWNED:<times>|FU:<Feature×count,...>\\n[/RESULT]`;\n\nreturn [{ json: { systemPrompt, userMessage: s } }];"
+      },
+      "id": "code-stats-001",
+      "name": "Build Prompt",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/chat/completions",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "bodyContentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"gpt-4o-mini\",\n  \"max_tokens\": 600,\n  \"messages\": [\n    {\"role\": \"system\", \"content\": \"{{ $json.systemPrompt }}\"},\n    {\"role\": \"user\", \"content\": \"{{ $json.userMessage }}\"}\n  ]\n}"
+      },
+      "id": "http-openai-001",
+      "name": "OpenAI gpt-4o-mini",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [680, 300],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "REPLACE_WITH_YOUR_OPENAI_CREDENTIAL_ID",
+          "name": "OpenAI API Key"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $input.first().json;\nconst text = item.choices?.[0]?.message?.content || '';\nreturn [{ json: { structured: text } }];"
+      },
+      "id": "code-stats-002",
+      "name": "Extract Result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              { "name": "Access-Control-Allow-Origin", "value": "*" },
+              { "name": "Content-Type", "value": "application/json" }
+            ]
+          }
+        }
+      },
+      "id": "respond-stats-001",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1120, 300]
+    }
+  ],
+  "connections": {
+    "Webhook": { "main": [[{ "node": "Build Prompt", "type": "main", "index": 0 }]] },
+    "Build Prompt": { "main": [[{ "node": "OpenAI gpt-4o-mini", "type": "main", "index": 0 }]] },
+    "OpenAI gpt-4o-mini": { "main": [[{ "node": "Extract Result", "type": "main", "index": 0 }]] },
+    "Extract Result": { "main": [[{ "node": "Respond to Webhook", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1" }
+}
