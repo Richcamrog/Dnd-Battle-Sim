@@ -343,7 +343,7 @@ pre{background:var(--card2);border:1px solid var(--border);border-radius:6px;pad
         </div>
         <div>
           <label>Runs per Map</label>
-          <select id="numSel" style="width:100px" onchange="document.getElementById('quickAccuracy').textContent={100:'±10% accuracy',500:'±4% accuracy',1000:'±3% accuracy'}[this.value]||''">
+          <select id="numSel" style="width:100px">
             <option value="100">100</option>
             <option value="500">500</option>
             <option value="1000" selected>1000</option>
@@ -371,7 +371,7 @@ pre{background:var(--card2);border:1px solid var(--border);border-radius:6px;pad
             </div>
             <div style="display:flex;flex-direction:column;align-items:center;gap:2px">
               <button class="btn-quick" id="quickSimBtn" onclick="startSim()" title="Fast rule-based simulation (instant)">⚡ Quick</button>
-              <span id="quickAccuracy" style="font-size:10px;color:var(--text3)">±3% accuracy</span>
+              <span id="quickAccuracy" style="font-size:10px;color:var(--text3)">simple fights · no strategy</span>
             </div>
           </div>
         </div>
