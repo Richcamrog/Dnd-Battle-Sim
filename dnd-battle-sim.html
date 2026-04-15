@@ -2069,18 +2069,25 @@ function buildCombatText(monsters,party,terrain){
   const td={'open-field':'Open Grassland — no cover, full movement, AOE hits all clustered targets',
     dungeon:'Stone Dungeon — 10-ft corridors, AOE limited to adjacent squares, retreat difficult',
     forest:'Dense Forest — half-cover available, difficult terrain, chokepoints'};
+  const _fmt=x=>typeof x==='string'?x:(x&&x.name?(x.name+(x.text?': '+x.text:'')):(x?JSON.stringify(x):''));
+  const _sizeMap={T:'Tiny',S:'Small',M:'Medium',L:'Large',H:'Huge',G:'Gargantuan'};
   let s='TERRAIN: '+(td[terrain]||terrain)+'\n\n=== MONSTERS ===\n';
   for(const m of monsters){
     s+='\n--- '+m.name+' (CR '+m.cr+') ---\nHP: '+m.hp+' | AC: '+m.ac+'\n';
+    const _sz=_sizeMap[m.size]||m.size||'Medium';
+    const _spd=m.speed||{walk:30};
+    const _spdStr=typeof _spd==='number'?_spd+' ft.':Object.entries(_spd).filter(([,v])=>v).map(([k,v])=>{const n=typeof v==='object'?v.number:v;return k==='walk'?n+' ft.':k+' '+n+' ft.';}).join(' | ');
+    s+='Size: '+_sz+' | Speed: '+_spdStr+'\n';
     s+='STR:'+(m.str||10)+' DEX:'+(m.dex||10)+' CON:'+(m.con||10)+' INT:'+(m.int||10)+' WIS:'+(m.wis||10)+' CHA:'+(m.cha||10)+'\n';
     if(m.save&&Object.keys(m.save).length)s+='Saves: '+Object.entries(m.save).map(([k,v])=>k.toUpperCase()+' +'+(v||0)).join(', ')+'\n';
     if(m.immune?.length)s+='Damage Immunities: '+[...m.immune].join(', ')+'\n';
     if(m.resist?.length)s+='Resistances: '+[...m.resist].join(', ')+'\n';
     if(m.conditionImmune?.length)s+='Condition Immunities: '+[...m.conditionImmune].join(', ')+'\n';
-    if(m.trait?.length){s+='TRAITS:\n';m.trait.forEach(t=>s+='  '+t+'\n');}
-    if(m.allActions?.length){s+='ACTIONS:\n';m.allActions.forEach(a=>s+='  '+a+'\n');}
-    if(m.reactions?.length){s+='REACTIONS:\n';m.reactions.forEach(r=>s+='  '+r+'\n');}
-    if(m.legendaryActions?.length){s+='LEGENDARY ACTIONS (3 uses/round, spend at end of any other creature\'s turn):\n';m.legendaryActions.forEach(la=>s+='  '+la+'\n');}
+    const _traits=m.traits||m.trait||[];
+    if(_traits.length){s+='TRAITS:\n';_traits.forEach(t=>s+='  '+_fmt(t)+'\n');}
+    if(m.allActions?.length){s+='ACTIONS:\n';m.allActions.forEach(a=>s+='  '+_fmt(a)+'\n');}
+    if(m.reactions?.length){s+='REACTIONS:\n';m.reactions.forEach(r=>s+='  '+_fmt(r)+'\n');}
+    if(m.legendaryActions?.length){s+='LEGENDARY ACTIONS (3 pts/round — use ALL 3 every round, at end of any other creature\'s turn):\n';m.legendaryActions.forEach(la=>s+='  '+_fmt(la)+'\n');}
     if(m.breathWeapon)s+='BREATH WEAPON: '+m.breathWeapon.name+' — '+m.breathWeapon.damage+' '+m.breathWeapon.dmgType+' damage, DC '+m.breathWeapon.dc+' DEX save, Recharge 5-6\n';
   }
   s+='\n=== PARTY ===\n';
