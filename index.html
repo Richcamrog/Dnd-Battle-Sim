@@ -71,6 +71,37 @@ header{
 .pc-name{flex:1;background:transparent;border:none;padding:0;font-size:15px;font-weight:600;color:var(--text);font-family:'Cinzel',serif;min-width:0}
 .pc-name:focus{outline:none}
 
+/* CHARACTER SHEET CARDS (Roll20-style) */
+.sheet-card{background:var(--card2);border:1px solid var(--border);border-radius:6px;padding:12px;font-size:11px;box-shadow:0 2px 8px rgba(0,0,0,.5)}
+.sheet-header{border-bottom:2px solid var(--accent);padding-bottom:8px;margin-bottom:10px;overflow:hidden}
+.sheet-name{font-family:'Cinzel',serif;font-size:14px;font-weight:700;color:var(--accent);letter-spacing:.5px}
+.sheet-meta{font-size:10px;color:var(--text2);margin-top:2px}
+.sheet-section-title{font-size:9px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--accent);border-bottom:1px solid var(--border);padding-bottom:2px;margin:8px 0 5px}
+.ability-row{display:flex;gap:4px;margin:8px 0}
+.ability-box{flex:1;background:var(--card);border:1px solid var(--border);border-radius:4px;text-align:center;padding:4px 2px 3px}
+.ability-label{font-size:8px;font-weight:700;letter-spacing:.5px;color:var(--text3);text-transform:uppercase}
+.ability-score{font-size:15px;font-weight:700;color:var(--text);line-height:1.1}
+.ability-mod{font-size:11px;font-weight:700;color:var(--accent);background:var(--bg);border:1px solid var(--border);border-radius:50%;width:22px;height:22px;display:flex;align-items:center;justify-content:center;margin:2px auto 0}
+.combat-row{display:flex;gap:4px;margin:6px 0}
+.combat-stat{flex:1;text-align:center;background:var(--card);border:1px solid var(--border);border-radius:4px;padding:4px 2px}
+.combat-val{font-size:15px;font-weight:700;color:var(--text);line-height:1.1}
+.combat-lbl{font-size:8px;color:var(--text3);text-transform:uppercase;letter-spacing:.3px}
+.save-row{display:flex;align-items:center;gap:4px;padding:1px 0;font-size:10px;color:var(--text2)}
+.prof-dot{width:8px;height:8px;border-radius:50%;border:1px solid var(--accent2);flex-shrink:0}
+.prof-dot.filled{background:var(--accent);border-color:var(--accent)}
+.atk-table{width:100%;border-collapse:collapse;font-size:10px;margin-top:4px}
+.atk-table th{color:var(--text3);font-weight:600;text-align:left;padding:1px 4px;border-bottom:1px solid var(--border);font-size:9px;text-transform:uppercase}
+.atk-table td{color:var(--text);padding:2px 4px}
+.atk-table tr:hover td{background:rgba(200,135,58,.06)}
+.feat-tags{display:flex;flex-wrap:wrap;gap:3px;margin-top:4px}
+.feat-tag{background:rgba(200,135,58,.12);border:1px solid var(--accent2);border-radius:3px;padding:2px 6px;font-size:9px;color:var(--text2)}
+.feat-tag.spell{border-color:var(--blue);color:var(--blue);background:rgba(90,138,176,.12)}
+.feat-tag.uses0{opacity:.4}
+.slot-row{display:flex;gap:6px;flex-wrap:wrap;margin-top:4px;align-items:center}
+.slot-level{font-size:9px;color:var(--text3)}
+.slot-pip{display:inline-block;width:9px;height:9px;border-radius:50%;border:1px solid var(--blue);background:rgba(90,138,176,.3);margin-left:2px}
+.sheet-edit-btn{font-size:9px;padding:2px 7px;float:right;margin-top:-2px}
+
 /* FORMS */
 .frow{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px}
 .frow3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:8px}
@@ -325,7 +356,10 @@ pre{background:var(--card2);border:1px solid var(--border);border-radius:6px;pad
     <div class="mb-16">
       <div class="section-title" style="justify-content:space-between;flex-wrap:wrap;gap:8px">
         <span>⚔️ Party <span class="txs tm" style="font-weight:normal">(choose class to load preset · edit any field)</span></span>
-        <button class="btn btn-secondary btn-sm" onclick="openImportModal()" title="Import Roll20 dnd2024byroll20 character JSON">📥 Import Roll20 JSON</button>
+        <div style="display:flex;gap:6px">
+          <button id="sheetToggleBtn" class="btn btn-secondary btn-sm" onclick="toggleSheetView()">✏ Edit Party</button>
+          <button class="btn btn-secondary btn-sm" onclick="openImportModal()" title="Import Roll20 dnd2024byroll20 character JSON">📥 Import Roll20 JSON</button>
+        </div>
       </div>
       <div class="grid-4" id="partyGrid"></div>
     </div>
@@ -762,35 +796,52 @@ const MAP_NAMES = ['Open Field','Dungeon','Forest'];
 // ============================================================
 const PC_PRESETS = [
   {name:'Aria',class:'Fighter',level:5,hp_max:52,ac:18,initiative_bonus:1,prof_bonus:3,
+   str:18,dex:12,con:16,int:10,wis:12,cha:10,race:'Human',speed:30,
    attacks:[{name:'Longsword',hit_bonus:7,damage:'1d8+4',multi:2}],
    features:[{name:'Action Surge',uses:1},{name:'Second Wind',uses:1,heal:'1d10+5'}],
    spell_slots:{},spell_save_dc:null,saving_throw_profs:['str','con']},
   {name:'Brynn',class:'Cleric',level:5,hp_max:38,ac:18,initiative_bonus:0,prof_bonus:3,
+   str:10,dex:10,con:14,int:12,wis:17,cha:14,race:'Human',speed:30,
    attacks:[{name:'Mace',hit_bonus:5,damage:'1d6+2',multi:1}],
-   features:[{name:'Channel Divinity',uses:1},{name:'Spiritual Weapon',uses:1,bonusAtk:true,hit_bonus:6,damage:'3d8+3',spellLevel:2}],
+   features:[
+     {name:'Healing Word',uses:2,heal:'1d4+3',spellLevel:1},
+     {name:'Channel Divinity',uses:1},
+     {name:'Bless',uses:1,spellLevel:1},
+     {name:'Spirit Guardians',uses:1,spellLevel:3,damage:'3d8',saveDC:14,aoe:true},
+     {name:'Hold Person',uses:2,spellLevel:2,saveDC:14},
+     {name:'Spiritual Weapon',uses:1,bonusAtk:true,hit_bonus:6,damage:'3d8+3',spellLevel:2}
+   ],
    spell_slots:{'1':4,'2':3,'3':2},spell_save_dc:14,saving_throw_profs:['wis','cha']},
   {name:'Kael',class:'Rogue',level:5,hp_max:33,ac:16,initiative_bonus:4,prof_bonus:3,
+   str:10,dex:18,con:14,int:12,wis:12,cha:10,race:'Wood Elf',speed:35,
    attacks:[{name:'Shortsword',hit_bonus:7,damage:'1d6+4',multi:1,sneak_attack:'3d6'}],
    features:[{name:'Uncanny Dodge',uses:1},{name:'Cunning Action',uses:1}],
    spell_slots:{},spell_save_dc:null,saving_throw_profs:['dex','int']},
   {name:'Sylara',class:'Wizard',level:5,hp_max:32,ac:15,initiative_bonus:2,prof_bonus:3,
+   str:8,dex:14,con:14,int:18,wis:12,cha:10,race:'High Elf',speed:30,
    attacks:[{name:'Fire Bolt',hit_bonus:7,damage:'2d10',multi:1}],
-   features:[{name:'Fireball',uses:3,spellLevel:3,damage:'8d6',saveDC:15,aoe:true}],
+   features:[
+     {name:'Fireball',uses:3,spellLevel:3,damage:'8d6',saveDC:15,aoe:true},
+     {name:'Scorching Ray',uses:3,spellLevel:2,damage:'2d6',hit_bonus:7},
+     {name:'Magic Missile',uses:4,spellLevel:1,damage:'1d4+1'},
+     {name:'Hold Person',uses:2,spellLevel:2,saveDC:15},
+     {name:'Shield',uses:2,spellLevel:1}
+   ],
    spell_slots:{'1':4,'2':3,'3':2},spell_save_dc:15,saving_throw_profs:['int','wis']}
 ];
 const CLASS_PRESETS = {
-  Barbarian:{level:5,hp_max:63,ac:15,initiative_bonus:2,prof_bonus:3,attacks:[{name:'Greataxe',hit_bonus:8,damage:'1d12+5',multi:2}],features:[{name:'Rage',uses:3},{name:'Reckless Attack',uses:99}],spell_slots:{},spell_save_dc:null,saving_throw_profs:['str','con']},
-  Bard:{level:5,hp_max:35,ac:14,initiative_bonus:2,prof_bonus:3,attacks:[{name:'Rapier',hit_bonus:6,damage:'1d8+3',multi:1}],features:[{name:'Bardic Inspiration',uses:4}],spell_slots:{'1':4,'2':3,'3':2},spell_save_dc:14,saving_throw_profs:['dex','cha']},
-  Cleric:{level:5,hp_max:38,ac:18,initiative_bonus:0,prof_bonus:3,attacks:[{name:'Mace',hit_bonus:5,damage:'1d6+2',multi:1}],features:[{name:'Channel Divinity',uses:1},{name:'Spiritual Weapon',uses:1,bonusAtk:true,hit_bonus:6,damage:'3d8+3',spellLevel:2}],spell_slots:{'1':4,'2':3,'3':2},spell_save_dc:14,saving_throw_profs:['wis','cha']},
-  Druid:{level:5,hp_max:35,ac:14,initiative_bonus:1,prof_bonus:3,attacks:[{name:'Shillelagh',hit_bonus:6,damage:'1d8+3',multi:1}],features:[{name:'Wild Shape',uses:2}],spell_slots:{'1':4,'2':3,'3':2},spell_save_dc:14,saving_throw_profs:['int','wis']},
-  Fighter:{level:5,hp_max:52,ac:18,initiative_bonus:1,prof_bonus:3,attacks:[{name:'Longsword',hit_bonus:7,damage:'1d8+4',multi:2}],features:[{name:'Action Surge',uses:1},{name:'Second Wind',uses:1,heal:'1d10+5'}],spell_slots:{},spell_save_dc:null,saving_throw_profs:['str','con']},
-  Monk:{level:5,hp_max:38,ac:16,initiative_bonus:4,prof_bonus:3,attacks:[{name:'Unarmed Strike',hit_bonus:7,damage:'1d6+4',multi:2}],features:[{name:'Stunning Strike',uses:5}],spell_slots:{},spell_save_dc:15,saving_throw_profs:['str','dex']},
-  Paladin:{level:5,hp_max:48,ac:20,initiative_bonus:0,prof_bonus:3,attacks:[{name:'Longsword',hit_bonus:7,damage:'1d8+4',multi:2}],features:[{name:'Divine Smite',uses:3,smite:true},{name:'Lay on Hands',uses:5}],spell_slots:{'1':4,'2':2},spell_save_dc:14,saving_throw_profs:['wis','cha']},
-  Ranger:{level:5,hp_max:42,ac:16,initiative_bonus:3,prof_bonus:3,attacks:[{name:'Longbow',hit_bonus:7,damage:'1d8+4',multi:2,isRanged:true}],features:[{name:"Hunter's Mark",uses:3,damage:'1d6'}],spell_slots:{'1':4,'2':2},spell_save_dc:14,saving_throw_profs:['str','dex']},
-  Rogue:{level:5,hp_max:33,ac:16,initiative_bonus:4,prof_bonus:3,attacks:[{name:'Shortsword',hit_bonus:7,damage:'1d6+4',multi:1,sneak_attack:'3d6'}],features:[{name:'Uncanny Dodge',uses:1},{name:'Cunning Action',uses:1}],spell_slots:{},spell_save_dc:null,saving_throw_profs:['dex','int']},
-  Sorcerer:{level:5,hp_max:30,ac:13,initiative_bonus:2,prof_bonus:3,attacks:[{name:'Fire Bolt',hit_bonus:7,damage:'2d10',multi:1}],features:[{name:'Fireball',uses:3,spellLevel:3,damage:'8d6',saveDC:14,aoe:true},{name:'Metamagic',uses:3}],spell_slots:{'1':4,'2':3,'3':2},spell_save_dc:14,saving_throw_profs:['con','cha']},
-  Warlock:{level:5,hp_max:32,ac:13,initiative_bonus:2,prof_bonus:3,attacks:[{name:'Eldritch Blast',hit_bonus:6,damage:'1d10+3',multi:2}],features:[{name:'Armor of Agathys',uses:1}],spell_slots:{'3':2},spell_save_dc:14,saving_throw_profs:['wis','cha']},
-  Wizard:{level:5,hp_max:32,ac:15,initiative_bonus:2,prof_bonus:3,attacks:[{name:'Fire Bolt',hit_bonus:7,damage:'2d10',multi:1}],features:[{name:'Fireball',uses:3,spellLevel:3,damage:'8d6',saveDC:15,aoe:true}],spell_slots:{'1':4,'2':3,'3':2},spell_save_dc:15,saving_throw_profs:['int','wis']}
+  Barbarian:{level:5,hp_max:63,ac:15,initiative_bonus:2,prof_bonus:3,str:18,dex:14,con:16,int:8,wis:12,cha:8,race:'Half-Orc',speed:30,attacks:[{name:'Greataxe',hit_bonus:8,damage:'1d12+5',multi:2}],features:[{name:'Rage',uses:3},{name:'Reckless Attack',uses:99}],spell_slots:{},spell_save_dc:null,saving_throw_profs:['str','con']},
+  Bard:{level:5,hp_max:35,ac:14,initiative_bonus:2,prof_bonus:3,str:10,dex:14,con:14,int:12,wis:10,cha:18,race:'Half-Elf',speed:30,attacks:[{name:'Rapier',hit_bonus:6,damage:'1d8+3',multi:1}],features:[{name:'Bardic Inspiration',uses:4},{name:'Healing Word',uses:3,heal:'1d4+4',spellLevel:1},{name:'Hypnotic Pattern',uses:1,spellLevel:3,saveDC:15,aoe:true}],spell_slots:{'1':4,'2':3,'3':2},spell_save_dc:15,saving_throw_profs:['dex','cha']},
+  Cleric:{level:5,hp_max:38,ac:18,initiative_bonus:0,prof_bonus:3,str:10,dex:10,con:14,int:12,wis:17,cha:14,race:'Human',speed:30,attacks:[{name:'Mace',hit_bonus:5,damage:'1d6+2',multi:1}],features:[{name:'Healing Word',uses:2,heal:'1d4+3',spellLevel:1},{name:'Channel Divinity',uses:1},{name:'Bless',uses:1,spellLevel:1},{name:'Spirit Guardians',uses:1,spellLevel:3,damage:'3d8',saveDC:14,aoe:true},{name:'Hold Person',uses:2,spellLevel:2,saveDC:14},{name:'Spiritual Weapon',uses:1,bonusAtk:true,hit_bonus:6,damage:'3d8+3',spellLevel:2}],spell_slots:{'1':4,'2':3,'3':2},spell_save_dc:14,saving_throw_profs:['wis','cha']},
+  Druid:{level:5,hp_max:35,ac:14,initiative_bonus:1,prof_bonus:3,str:10,dex:12,con:14,int:12,wis:17,cha:10,race:'Wood Elf',speed:35,attacks:[{name:'Shillelagh',hit_bonus:6,damage:'1d8+3',multi:1}],features:[{name:'Wild Shape',uses:2},{name:'Healing Word',uses:2,heal:'1d4+3',spellLevel:1},{name:'Moonbeam',uses:2,spellLevel:2,damage:'2d10',saveDC:14,aoe:true}],spell_slots:{'1':4,'2':3,'3':2},spell_save_dc:14,saving_throw_profs:['int','wis']},
+  Fighter:{level:5,hp_max:52,ac:18,initiative_bonus:1,prof_bonus:3,str:18,dex:12,con:16,int:10,wis:12,cha:10,race:'Human',speed:30,attacks:[{name:'Longsword',hit_bonus:7,damage:'1d8+4',multi:2}],features:[{name:'Action Surge',uses:1},{name:'Second Wind',uses:1,heal:'1d10+5'}],spell_slots:{},spell_save_dc:null,saving_throw_profs:['str','con']},
+  Monk:{level:5,hp_max:38,ac:16,initiative_bonus:4,prof_bonus:3,str:14,dex:18,con:14,int:10,wis:16,cha:8,race:'Halfling',speed:40,attacks:[{name:'Unarmed Strike',hit_bonus:7,damage:'1d6+4',multi:2}],features:[{name:'Stunning Strike',uses:5}],spell_slots:{},spell_save_dc:15,saving_throw_profs:['str','dex']},
+  Paladin:{level:5,hp_max:48,ac:20,initiative_bonus:0,prof_bonus:3,str:18,dex:10,con:14,int:10,wis:14,cha:16,race:'Human',speed:30,attacks:[{name:'Longsword',hit_bonus:7,damage:'1d8+4',multi:2}],features:[{name:'Divine Smite',uses:3,smite:true},{name:'Lay on Hands',uses:5},{name:'Bless',uses:1,spellLevel:1}],spell_slots:{'1':4,'2':2},spell_save_dc:14,saving_throw_profs:['wis','cha']},
+  Ranger:{level:5,hp_max:42,ac:16,initiative_bonus:3,prof_bonus:3,str:14,dex:18,con:14,int:10,wis:14,cha:10,race:'Wood Elf',speed:35,attacks:[{name:'Longbow',hit_bonus:7,damage:'1d8+4',multi:2,isRanged:true}],features:[{name:"Hunter's Mark",uses:3,damage:'1d6'},{name:'Ensnaring Strike',uses:2,spellLevel:1,saveDC:14}],spell_slots:{'1':4,'2':2},spell_save_dc:14,saving_throw_profs:['str','dex']},
+  Rogue:{level:5,hp_max:33,ac:16,initiative_bonus:4,prof_bonus:3,str:10,dex:18,con:14,int:12,wis:12,cha:10,race:'Halfling',speed:25,attacks:[{name:'Shortsword',hit_bonus:7,damage:'1d6+4',multi:1,sneak_attack:'3d6'}],features:[{name:'Uncanny Dodge',uses:1},{name:'Cunning Action',uses:1}],spell_slots:{},spell_save_dc:null,saving_throw_profs:['dex','int']},
+  Sorcerer:{level:5,hp_max:30,ac:13,initiative_bonus:2,prof_bonus:3,str:8,dex:14,con:14,int:10,wis:10,cha:18,race:'Tiefling',speed:30,attacks:[{name:'Fire Bolt',hit_bonus:7,damage:'2d10',multi:1}],features:[{name:'Fireball',uses:3,spellLevel:3,damage:'8d6',saveDC:15,aoe:true},{name:'Scorching Ray',uses:3,spellLevel:2,damage:'2d6',hit_bonus:7},{name:'Shield',uses:2,spellLevel:1},{name:'Metamagic',uses:3}],spell_slots:{'1':4,'2':3,'3':2},spell_save_dc:15,saving_throw_profs:['con','cha']},
+  Warlock:{level:5,hp_max:32,ac:13,initiative_bonus:2,prof_bonus:3,str:8,dex:14,con:14,int:12,wis:12,cha:18,race:'Tiefling',speed:30,attacks:[{name:'Eldritch Blast',hit_bonus:7,damage:'1d10+4',multi:2}],features:[{name:'Armor of Agathys',uses:1},{name:'Hex',uses:2,damage:'1d6',spellLevel:1}],spell_slots:{'3':2},spell_save_dc:15,saving_throw_profs:['wis','cha']},
+  Wizard:{level:5,hp_max:32,ac:15,initiative_bonus:2,prof_bonus:3,str:8,dex:14,con:14,int:18,wis:12,cha:10,race:'High Elf',speed:30,attacks:[{name:'Fire Bolt',hit_bonus:7,damage:'2d10',multi:1}],features:[{name:'Fireball',uses:3,spellLevel:3,damage:'8d6',saveDC:15,aoe:true},{name:'Scorching Ray',uses:3,spellLevel:2,damage:'2d6',hit_bonus:7},{name:'Magic Missile',uses:4,spellLevel:1,damage:'1d4+1'},{name:'Hold Person',uses:2,spellLevel:2,saveDC:15},{name:'Shield',uses:2,spellLevel:1}],spell_slots:{'1':4,'2':3,'3':2},spell_save_dc:15,saving_throw_profs:['int','wis']}
 };
 
 // ============================================================
@@ -804,6 +855,7 @@ let encounters = {'open-field':[],'dungeon':[],'forest':[]};
 const encounterNotes = {'open-field':'','dungeon':'','forest':''};
 let lastResults = null;
 let charts = {};
+let sheetView = true;  // show Roll20-style character sheets by default
 
 function deepClonePC(pc) {
   return {...pc, attacks:pc.attacks.map(a=>({...a})), features:pc.features.map(f=>({...f})), spell_slots:{...(pc.spell_slots||{})}};
@@ -1566,8 +1618,108 @@ const SUBCLASSES={
     {name:'War Magic',           acBonus:1,                 note:'Arcane Deflection: +4 AC reaction'},
   ],
 };
+// ── Roll20-style character sheet card ─────────────────────────────────────────
+function renderCharacterSheet(pc, idx) {
+  const modVal = s => Math.floor(((s||10)-10)/2);
+  const sign   = n => n>=0?`+${n}`:String(n);
+  const STATS = [{k:'str',l:'STR'},{k:'dex',l:'DEX'},{k:'con',l:'CON'},{k:'int',l:'INT'},{k:'wis',l:'WIS'},{k:'cha',l:'CHA'}];
+
+  // Ability score boxes
+  const abilityHtml = STATS.map(a=>{
+    const v=pc[a.k]||10, m=modVal(v);
+    return `<div class="ability-box">
+      <div class="ability-label">${a.l}</div>
+      <div class="ability-score">${v}</div>
+      <div class="ability-mod">${sign(m)}</div>
+    </div>`;
+  }).join('');
+
+  // Combat stats row: AC | Init | Speed | HP | Prof
+  const initStr = sign(pc.initiative_bonus!==undefined ? pc.initiative_bonus : modVal(pc.dex));
+  const combatHtml = [
+    {v:pc.ac||10,        l:'Armor<br>Class'},
+    {v:initStr,          l:'Initiative'},
+    {v:(pc.speed||30)+'ft', l:'Speed'},
+    {v:pc.hp_max,        l:'Hit<br>Points'},
+    {v:'+'+(pc.prof_bonus||3), l:'Proficiency'},
+  ].map(s=>`<div class="combat-stat"><div class="combat-val">${s.v}</div><div class="combat-lbl">${s.l}</div></div>`).join('');
+
+  // Saving throws — all 6, filled dot if proficient
+  const stProfs = pc.saving_throw_profs||[];
+  const savesHtml = STATS.map(a=>{
+    const prof=stProfs.includes(a.k);
+    const bonus=sign(modVal(pc[a.k]||10)+(prof?(pc.prof_bonus||3):0));
+    return `<div class="save-row"><div class="prof-dot ${prof?'filled':''}"></div><span style="color:var(--text);min-width:22px;display:inline-block">${bonus}</span>${a.l}</div>`;
+  }).join('');
+
+  // Attacks table
+  const atkRows = (pc.attacks||[]).map(a=>{
+    const multi = a.multi>1?`<span style="color:var(--gold)">×${a.multi}</span>`:'';
+    const snk   = a.sneak_attack?`<span style="color:var(--purple)">+${a.sneak_attack} snk</span>`:'';
+    return `<tr><td>${a.name}</td><td>${sign(a.hit_bonus||0)}</td><td>${a.damage||'—'} ${snk}</td><td>${multi}</td></tr>`;
+  }).join('');
+
+  // Feature & spell tags
+  const featHtml = (pc.features||[]).map(f=>{
+    const isSpell=!!(f.spellLevel||f.aoe||f.heal||f.saveDC);
+    const uses=f.uses===99?'∞':f.uses;
+    const detail=f.damage?` [${f.damage}]`:(f.heal?` [${f.heal}]`:'');
+    return `<span class="feat-tag${isSpell?' spell':''}${f.uses<=0?' uses0':''}">${f.name}${detail} ×${uses}</span>`;
+  }).join('');
+
+  // Spell slots as pip circles
+  let slotsHtml='';
+  const slots=pc.spell_slots||{};
+  if(Object.keys(slots).length){
+    const pips=Object.entries(slots).map(([l,n])=>
+      `<span class="slot-level">L${l}</span>${Array(n).fill('<span class="slot-pip"></span>').join('')}`
+    ).join('&ensp;');
+    slotsHtml=`<div class="sheet-section-title">Spell Slots &nbsp;<span style="color:var(--text3);font-size:9px;text-transform:none;letter-spacing:0">Save DC ${pc.spell_save_dc||'—'}</span></div><div class="slot-row">${pips}</div>`;
+  }
+
+  // Subclass badge
+  const subBadge = pc.subclass?`<span style="color:var(--text3);font-size:9px;margin-left:4px">(${pc.subclass})</span>`:'';
+
+  return `<div class="sheet-card" id="sheet-${idx}">
+    <div class="sheet-header">
+      <button class="btn btn-secondary btn-sm sheet-edit-btn" onclick="toggleSheetEdit(${idx})">✏ Edit</button>
+      <div class="sheet-name">${pc.name}</div>
+      <div class="sheet-meta">${pc.class} ${pc.level}${subBadge} &nbsp;·&nbsp; ${pc.race||'Human'} &nbsp;·&nbsp; Prof +${pc.prof_bonus||3}</div>
+    </div>
+    <div class="ability-row">${abilityHtml}</div>
+    <div class="combat-row">${combatHtml}</div>
+    <div style="display:grid;grid-template-columns:1fr;gap:0">
+      <div><div class="sheet-section-title">Saving Throws</div><div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:0">${savesHtml}</div></div>
+    </div>
+    <div class="sheet-section-title">Attacks &amp; Spellcasting</div>
+    <table class="atk-table"><thead><tr><th>Name</th><th>Hit</th><th>Damage</th><th></th></tr></thead><tbody>${atkRows}</tbody></table>
+    <div class="sheet-section-title">Features &amp; Traits</div>
+    <div class="feat-tags">${featHtml}</div>
+    ${slotsHtml}
+  </div>`;
+}
+
+function toggleSheetView() {
+  sheetView=!sheetView;
+  const btn=document.getElementById('sheetToggleBtn');
+  if(btn) btn.textContent=sheetView?'✏ Edit Party':'📋 Sheets';
+  renderParty();
+}
+
+function toggleSheetEdit(idx) {
+  sheetView=false;
+  const btn=document.getElementById('sheetToggleBtn');
+  if(btn) btn.textContent='📋 Sheets';
+  renderParty();
+  setTimeout(()=>{ const card=document.querySelectorAll('#partyGrid .pc-card')[idx]; if(card) card.scrollIntoView({behavior:'smooth',block:'nearest'}); },50);
+}
+
 function renderParty() {
   const g=document.getElementById('partyGrid'); if(!g) return;
+  if(sheetView){
+    g.innerHTML=party.map((pc,i)=>renderCharacterSheet(pc,i)).join('');
+    return;
+  }
   let html=party.map((pc,i)=>`
     <div class="pc-card">
       <div class="pc-head">
