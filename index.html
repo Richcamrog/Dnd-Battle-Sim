@@ -957,7 +957,12 @@ function parseMonster(raw) {
       const txt=flatE(a.entries||[]);
       const dcm=txt.match(/DC\s*(\d+)/i);
       const dmgm=txt.match(/(\d+d\d+(?:\+\d+)?)\s*(fire|cold|lightning|acid|poison|necrotic|radiant|thunder|force)/i);
-      if (dcm&&dmgm) { breathWeapon={name:a.name,damage:dmgm[1],dmgType:dmgm[2].toLowerCase(),dc:parseInt(dcm[1])}; break; }
+      if (dcm&&dmgm) {
+        const rechm=a.name.match(/recharge\s*(\d+)[–\-](\d+)/i)||a.name.match(/recharge\s*(\d+)/i);
+        const rechargeProb=rechm?(rechm[2]?(7-parseInt(rechm[1]))/6:1/6):0.33;
+        breathWeapon={name:a.name,damage:dmgm[1],dmgType:dmgm[2].toLowerCase(),dc:parseInt(dcm[1]),rechargeProb};
+        break;
+      }
     }
     const legendaryActionCount=(raw.legendary||[]).length>0?3:0;
     const xp=CR_XP[cr]!==undefined?CR_XP[cr]:Math.round(cr*200);
@@ -1664,7 +1669,7 @@ function clonePartyForRun(src) {
     alive:true,conscious:true,stable:false,
     ds:0,df:0,td:0,slu:0,raging:false,swActive:false,dodged:false,_round:1,
     dmgDealt:0,dmgTaken:0,fuUsed:{},
-    markActive:false,agathysActive:false,agathysHp:0
+    markActive:false,agathysActive:false,agathysHp:0,inspBonus:0,wsHp:0,wsActive:false
   }));
 }
 function cloneMonstersForRun(enc) {
@@ -1695,6 +1700,11 @@ function doMonAtk(m,tgt,trn,hardcore) {
   let dmg=rollDice(atk.damage); if(crit) dmg+=rollDice(atk.damage);
   if (tgt.class==='Rogue'&&!tgt.dodged&&(tgt.fu['Uncanny Dodge']||0)>0) { dmg=Math.floor(dmg/2); tgt.dodged=true; tgt.fuUsed['Uncanny Dodge']=(tgt.fuUsed['Uncanny Dodge']||0)+1; }
   if (tgt.resistNonPsychic) dmg=Math.floor(dmg/2); // Barbarian Rage / Bear Totem
+  // Druid Wild Shape: absorb damage into beast form HP first
+  if (tgt.wsActive&&tgt.wsHp>0) {
+    const absorbed=Math.min(dmg,tgt.wsHp); tgt.wsHp-=absorbed; dmg-=absorbed;
+    if (tgt.wsHp<=0) tgt.wsActive=false;
+  }
   tgt.dmgTaken=(tgt.dmgTaken||0)+dmg;
   tgt.hp=Math.max(0,tgt.hp-dmg);
   // Warlock: Armor of Agathys retaliation
@@ -1714,11 +1724,12 @@ function doPcAtk(pc,tgt,atk,trn,skipSneak) {
   const crit=roll>=(pc.critThreshold||20);
   let eac=tgt.ac+trn.coverBonus;
   if (trn.coverChance>0&&Math.random()<trn.coverChance) eac+=trn.coverAmt;
-  if (!crit&&roll+atk.hit_bonus<eac) return;
+  const inspAdd=pc.inspBonus||0; pc.inspBonus=0; // consume inspiration die on this attack
+  if (!crit&&roll+atk.hit_bonus+inspAdd<eac) return;
   let dmg=rollDice(atk.damage); if(crit) dmg+=rollDice(atk.damage);
   if (pc.raging) dmg+=2;
   if (!skipSneak&&atk.sneak_attack) dmg+=rollDice(atk.sneak_attack);
-  if (pc.class==='Paladin'&&pc.slots) { const sl=['1','2','3'].find(s=>(pc.slots[s]||0)>0); if(sl){pc.slots[sl]--;pc.slu++;pc.fuUsed['Divine Smite']=(pc.fuUsed['Divine Smite']||0)+1;dmg+=rollDice({'1':'2d8','2':'3d8','3':'4d8'}[sl]);} }
+  if (pc.class==='Paladin'&&pc.slots) { const sl=['3','2','1'].find(s=>(pc.slots[s]||0)>0); if(sl){pc.slots[sl]--;pc.slu++;pc.fuUsed['Divine Smite']=(pc.fuUsed['Divine Smite']||0)+1;dmg+=rollDice({'1':'2d8','2':'3d8','3':'4d8'}[sl]);} }
   if (pc.markActive&&pc.class==='Ranger') dmg+=rollDice('1d6'); // Hunter's Mark bonus
   if (pc.subDmgBonus) dmg+=pc.subDmgBonus;
   // Feature D: resistance/immunity by damage type
@@ -1753,6 +1764,15 @@ function pcTurn(pc,allPcs,mons,trn) {
     const dy=allPcs.find(p=>p!==pc&&p.alive&&!p.conscious&&!p.stable);
     if (dy) { dy.hp=rollDice('1d8+3')+(pc.healBonus||0);dy.conscious=true;dy.ds=0;dy.df=0;pc.slots['1']--;pc.slu++;pc.fuUsed['Heal']=(pc.fuUsed['Heal']||0)+1;bonusTurn(pc,allPcs,lm,trn);return; }
   }
+  // Cleric: Channel Divinity — Turn Undead on round 1 if undead are present
+  if (pc.class==='Cleric'&&(pc.fu['Channel Divinity']||0)>0&&pc._round===1) {
+    const undead=lm.filter(m=>m.type==='undead');
+    if (undead.length) {
+      undead.forEach(m=>{ if(r20()+pmod(m.wis||10)<(pc.sdc||14)) m.fleeing=true; });
+      pc.fu['Channel Divinity']--;pc.fuUsed['Channel Divinity']=(pc.fuUsed['Channel Divinity']||0)+1;
+      bonusTurn(pc,allPcs,lm,trn); return;
+    }
+  }
   // Warlock: Armor of Agathys (cast on first turn)
   if (pc.class==='Warlock'&&(pc.fu['Armor of Agathys']||0)>0&&!pc.agathysActive) {
     pc.agathysActive=true;pc.agathysHp=5;pc.fu['Armor of Agathys']--;
@@ -1761,6 +1781,8 @@ function pcTurn(pc,allPcs,mons,trn) {
   // Second Wind (bonus action — use at 50% HP)
   const sw=pc.features.find(f=>f.name==='Second Wind');
   if (sw&&(pc.fu['Second Wind']||0)>0&&pc.hp<pc.hp_max*.5) { pc.hp=Math.min(pc.hp_max,pc.hp+rollDice(sw.heal||'1d10+5'));pc.fu['Second Wind']--;pc.fuUsed['Second Wind']=(pc.fuUsed['Second Wind']||0)+1; }
+  // Druid Wild Shape — activate on first turn as a bonus action HP buffer
+  if (pc.class==='Druid'&&!pc.wsActive&&(pc.fu['Wild Shape']||0)>0) { pc.wsActive=true;pc.wsHp=(pc.level||5)*4;pc.fu['Wild Shape']--;pc.fuUsed['Wild Shape']=(pc.fuUsed['Wild Shape']||0)+1; }
   // Barbarian Rage — activates first turn, grants damage resistance
   if (pc.class==='Barbarian'&&!pc.raging&&(pc.fu['Rage']||0)>0) { pc.raging=true;pc.fu['Rage']--;pc.resistNonPsychic=true;pc.fuUsed['Rage']=(pc.fuUsed['Rage']||0)+1; }
   // Ranger: activate Hunter's Mark before attacking
@@ -1770,7 +1792,13 @@ function pcTurn(pc,allPcs,mons,trn) {
   if (fb&&lm.length>=2&&pc.slots) {
     const sl=String(fb.spellLevel||3);
     if ((pc.slots[sl]||0)>0) {
-      let rd=rollDice(fb.damage||'8d6')+(pc.evoBonus||0); pc.slots[sl]--;pc.slu++;pc.fuUsed['Fireball']=(pc.fuUsed['Fireball']||0)+1;
+      let rd=rollDice(fb.damage||'8d6')+(pc.evoBonus||0);
+      // Sorcerer Metamagic (Empowered Spell): reroll if below average, take better result
+      if (pc.class==='Sorcerer'&&(pc.fu['Metamagic']||0)>0) {
+        const reroll=rollDice(fb.damage||'8d6')+(pc.evoBonus||0);
+        if (reroll>rd) { rd=reroll; pc.fu['Metamagic']--; pc.fuUsed['Metamagic']=(pc.fuUsed['Metamagic']||0)+1; }
+      }
+      pc.slots[sl]--;pc.slu++;pc.fuUsed['Fireball']=(pc.fuUsed['Fireball']||0)+1;
       for (const m of lm) { const sv=r20()+pmod(m.dex||10); m.hp=Math.max(0,m.hp-(sv>=(fb.saveDC||15)?Math.floor(rd/2):rd)); if(m.hp===0)m.alive=false; }
       bonusTurn(pc,allPcs,mons.filter(m=>m.alive),trn); return;
     }
@@ -1801,11 +1829,17 @@ function bonusTurn(pc,allPcs,lm,trn) {
     const ta=allPcs.filter(p=>p.alive&&p.conscious&&p.hp<p.hp_max*.5).sort((a,b)=>a.hp-b.hp)[0];
     if (ta) { ta.hp=Math.min(ta.hp_max,ta.hp+5);pc.fu['Lay on Hands']--;pc.fuUsed['Lay on Hands']=(pc.fuUsed['Lay on Hands']||0)+1; }
   }
+  if (pc.class==='Bard'&&(pc.fu['Bardic Inspiration']||0)>0) {
+    // Give inspiration to the ally most likely to miss (lowest attack bonus relative to enemies)
+    const ally=allPcs.filter(p=>p.alive&&p.conscious&&p!==pc&&!p.inspBonus).sort((a,b)=>a.hp-b.hp)[0];
+    if (ally) { ally.inspBonus=rollDice('1d6');pc.fu['Bardic Inspiration']--;pc.fuUsed['Bardic Inspiration']=(pc.fuUsed['Bardic Inspiration']||0)+1; }
+  }
 }
 
 function monTurn(m,mons,pcs,trn,hardcore) {
-  // Stunned monsters lose their turn (Monk Stunning Strike)
+  // Stunned or Turned monsters lose their turn
   if (m.stunned) { m.stunned=false; return; }
+  if (m.fleeing) return; // Turned by Channel Divinity — skip attacks
   const lv=pcs.filter(p=>p.alive&&p.conscious);
   const dy=pcs.filter(p=>p.alive&&!p.conscious&&!p.stable);
 
@@ -1831,8 +1865,8 @@ function monTurn(m,mons,pcs,trn,hardcore) {
     }
   } else {
     if (!lv.length) { if(dy.length){dy[0].df+=2;if(dy[0].df>=3)dy[0].alive=false;} return; }
-    // Breath weapon recharge: 33% chance (models recharge 5-6)
-    if (m.breathWeapon&&!m.breathReady&&Math.random()<0.33) m.breathReady=true;
+    // Breath weapon recharge: use parsed probability (default 0.33 = Recharge 5-6)
+    if (m.breathWeapon&&!m.breathReady&&Math.random()<(m.breathWeapon.rechargeProb||0.33)) m.breathReady=true;
     // Use breath weapon if available — AOE DEX save hits all conscious PCs
     if (m.breathReady&&m.breathWeapon) {
       const bw=m.breathWeapon;
@@ -1850,7 +1884,16 @@ function monTurn(m,mons,pcs,trn,hardcore) {
     }
     const tgt=bestPcTarget(pcs); if(!tgt) return;
     const multi=trn.diffTerrain&&Math.random()<.25?Math.max(1,m.multiCount-1):m.multiCount;
-    for (let i=0;i<multi;i++) { const cur=(tgt&&tgt.alive&&tgt.conscious)?tgt:bestPcTarget(pcs); if(!cur) break; doMonAtk(m,cur,trn,false); }
+    for (let i=0;i<multi;i++) {
+      const cur=(tgt&&tgt.alive&&tgt.conscious)?tgt:bestPcTarget(pcs);
+      if (!cur) {
+        // No conscious targets — press advantage on a downed PC (death save failure)
+        const stomped=pcs.find(p=>p.alive&&!p.conscious&&!p.stable);
+        if (stomped) { stomped.df++; if(stomped.df>=3) stomped.alive=false; }
+        continue;
+      }
+      doMonAtk(m,cur,trn,false);
+    }
   }
 }
 
@@ -1917,10 +1960,10 @@ function runCombatVerbose(pCfg,enc,trn,hardcore) {
           if (pc.stable) { continue; } // stable = out of combat, no more death saves
           const ds=Math.floor(Math.random()*20)+1;
           const dsPass=ds>=10; const dsCrit=(ds===20);
-          if (dsCrit) { pc.conscious=true; pc.hp=1; log.push({type:'death_save',actor:pc.name,roll:ds,result:'stabilize_crit',round:rnd}); }
-          else if (ds===1) { pc.dsF=(pc.dsF||0)+2; if(pc.dsF>=3){pc.alive=false;log.push({type:'dead',actor:pc.name,round:rnd});} else log.push({type:'death_save',actor:pc.name,roll:ds,result:'fail',round:rnd}); }
-          else if (!dsPass) { pc.dsF=(pc.dsF||0)+1; if(pc.dsF>=3){pc.alive=false;log.push({type:'dead',actor:pc.name,round:rnd});} else log.push({type:'death_save',actor:pc.name,roll:ds,result:'fail',round:rnd}); }
-          else { pc.dsP=(pc.dsP||0)+1; if(pc.dsP>=3){pc.stable=true;log.push({type:'death_save',actor:pc.name,roll:ds,result:'stable',round:rnd});} else log.push({type:'death_save',actor:pc.name,roll:ds,result:'pass',round:rnd}); }
+          if (dsCrit) { pc.conscious=true; pc.hp=1; pc.ds=0; pc.df=0; log.push({type:'death_save',actor:pc.name,roll:ds,result:'stabilize_crit',round:rnd}); }
+          else if (ds===1) { pc.df+=2; if(pc.df>=3){pc.alive=false;log.push({type:'dead',actor:pc.name,round:rnd});} else log.push({type:'death_save',actor:pc.name,roll:ds,result:'fail',round:rnd}); }
+          else if (!dsPass) { pc.df++; if(pc.df>=3){pc.alive=false;log.push({type:'dead',actor:pc.name,round:rnd});} else log.push({type:'death_save',actor:pc.name,roll:ds,result:'fail',round:rnd}); }
+          else { pc.ds++; if(pc.ds>=3){pc.stable=true;pc.ds=0;pc.df=0;log.push({type:'death_save',actor:pc.name,roll:ds,result:'stable',round:rnd});} else log.push({type:'death_save',actor:pc.name,roll:ds,result:'pass',round:rnd}); }
           continue;
         }
         // PC attacks — log the first attack action
@@ -2079,16 +2122,16 @@ function buildCombatText(monsters,party,terrain){
     const _spdStr=typeof _spd==='number'?_spd+' ft.':Object.entries(_spd).filter(([,v])=>v).map(([k,v])=>{const n=typeof v==='object'?v.number:v;return k==='walk'?n+' ft.':k+' '+n+' ft.';}).join(' | ');
     s+='Size: '+_sz+' | Speed: '+_spdStr+'\n';
     s+='STR:'+(m.str||10)+' DEX:'+(m.dex||10)+' CON:'+(m.con||10)+' INT:'+(m.int||10)+' WIS:'+(m.wis||10)+' CHA:'+(m.cha||10)+'\n';
-    if(m.save&&Object.keys(m.save).length)s+='Saves: '+Object.entries(m.save).map(([k,v])=>k.toUpperCase()+' +'+(v||0)).join(', ')+'\n';
-    if(m.immune?.length)s+='Damage Immunities: '+[...m.immune].join(', ')+'\n';
-    if(m.resist?.length)s+='Resistances: '+[...m.resist].join(', ')+'\n';
-    if(m.conditionImmune?.length)s+='Condition Immunities: '+[...m.conditionImmune].join(', ')+'\n';
+    if(m.saves&&Object.keys(m.saves).length)s+='Saves: '+Object.entries(m.saves).map(([k,v])=>k.toUpperCase()+' +'+(v||0)).join(', ')+'\n';
+    if(m.immunities?.length)s+='Damage Immunities: '+m.immunities.join(', ')+'\n';
+    if(m.resistances?.length)s+='Resistances: '+m.resistances.join(', ')+'\n';
+    if(m.conditionImmunes?.length)s+='Condition Immunities: '+m.conditionImmunes.join(', ')+'\n';
     const _traits=m.traits||m.trait||[];
     if(_traits.length){s+='TRAITS:\n';_traits.forEach(t=>s+='  '+_fmt(t)+'\n');}
     if(m.allActions?.length){s+='ACTIONS:\n';m.allActions.forEach(a=>s+='  '+_fmt(a)+'\n');}
     if(m.reactions?.length){s+='REACTIONS:\n';m.reactions.forEach(r=>s+='  '+_fmt(r)+'\n');}
     if(m.legendaryActions?.length){s+='LEGENDARY ACTIONS (3 pts/round — use ALL 3 every round, at end of any other creature\'s turn):\n';m.legendaryActions.forEach(la=>s+='  '+_fmt(la)+'\n');}
-    if(m.breathWeapon)s+='BREATH WEAPON: '+m.breathWeapon.name+' — '+m.breathWeapon.damage+' '+m.breathWeapon.dmgType+' damage, DC '+m.breathWeapon.dc+' DEX save, Recharge 5-6\n';
+    if(m.breathWeapon){const _rc=m.breathWeapon.rechargeProb||0.33;const _rcLabel=_rc>=0.5?'Recharge 4-6':_rc<=0.17?'Recharge 6':'Recharge 5-6';s+='BREATH WEAPON: '+m.breathWeapon.name+' — '+m.breathWeapon.damage+' '+m.breathWeapon.dmgType+' damage, DC '+m.breathWeapon.dc+' DEX save, '+_rcLabel+'\n';}
   }
   s+='\n=== PARTY ===\n';
   for(const pc of party){
