@@ -824,6 +824,15 @@ function rollDice(f) {
   let t=mod; for(let i=0;i<cnt;i++) t+=(Math.random()*sides|0)+1;
   return Math.max(0,t);
 }
+// Rolls only the dice portion of a damage expression — used for crits (dice doubled, modifier added once)
+function rollDiceOnly(f) {
+  if (!f) return 0;
+  const m = String(f).match(/^(\d*)d(\d+)/i);
+  if (!m) return 0;
+  const cnt=parseInt(m[1])||1, sides=parseInt(m[2]);
+  let t=0; for(let i=0;i<cnt;i++) t+=(Math.random()*sides|0)+1;
+  return t;
+}
 function crLabel(cr) { return cr===.125?'1/8':cr===.25?'1/4':cr===.5?'1/2':String(cr); }
 function pmod(s) { return Math.floor(((s||10)-10)/2); }
 
@@ -1691,13 +1700,14 @@ function doMonAtk(m,tgt,trn,hardcore) {
   let roll=r20();
   if (trn.rangedDisadv&&m.attacks[0].isRanged) roll=Math.min(roll,r20());
   else if (hardcore) roll=Math.max(roll,r20()); // advantage in hardcore
+  if (roll===1) return; // Natural 1 = automatic miss
   const critMin=hardcore?19:20;
   const crit=roll>=critMin;
   let eac=tgt.ac+trn.coverBonus;
   if (trn.coverChance>0&&Math.random()<trn.coverChance) eac+=trn.coverAmt;
   if (!crit&&roll+m.attacks[0].hit_bonus<eac) return;
   const atk=m.attacks[0];
-  let dmg=rollDice(atk.damage); if(crit) dmg+=rollDice(atk.damage);
+  let dmg=rollDice(atk.damage); if(crit) dmg+=rollDiceOnly(atk.damage); // crit: dice only, not modifier
   if (tgt.class==='Rogue'&&!tgt.dodged&&(tgt.fu['Uncanny Dodge']||0)>0) { dmg=Math.floor(dmg/2); tgt.dodged=true; tgt.fuUsed['Uncanny Dodge']=(tgt.fuUsed['Uncanny Dodge']||0)+1; }
   if (tgt.resistNonPsychic) dmg=Math.floor(dmg/2); // Barbarian Rage / Bear Totem
   // Druid Wild Shape: absorb damage into beast form HP first
@@ -1710,8 +1720,10 @@ function doMonAtk(m,tgt,trn,hardcore) {
   // Warlock: Armor of Agathys retaliation
   if (tgt.agathysActive&&tgt.agathysHp>0&&dmg>0) { m.hp=Math.max(0,m.hp-5); if(m.hp===0)m.alive=false; tgt.agathysHp=0;tgt.agathysActive=false; }
   if (tgt.hp===0) {
+    // Massive damage rule: if damage >= hp_max in one hit, instant death (D&D 5e PHB p.197)
+    if (tgt.conscious && dmg>=tgt.hp_max) { tgt.alive=false; return; }
     if (tgt.conscious) { tgt.conscious=false; tgt.ds=0; tgt.df=0; tgt.td++; }
-    else { tgt.df++; if(tgt.df>=3) tgt.alive=false; }
+    else { tgt.df+=crit?2:1; if(tgt.df>=3) tgt.alive=false; } // crit on unconscious = 2 fails
   }
 }
 
@@ -1721,12 +1733,13 @@ function doPcAtk(pc,tgt,atk,trn,skipSneak) {
   if (trn.rangedDisadv&&atk.isRanged) roll=Math.min(roll,r20());
   if (pc.raging&&(pc.fu['Reckless Attack']||0)>0) roll=Math.max(roll,r20());
   if (pc.advRound1&&pc._round===1) roll=Math.max(roll,r20()); // Gloom Stalker / Assassin
+  if (roll===1) return; // Natural 1 = automatic miss
   const crit=roll>=(pc.critThreshold||20);
   let eac=tgt.ac+trn.coverBonus;
   if (trn.coverChance>0&&Math.random()<trn.coverChance) eac+=trn.coverAmt;
   const inspAdd=pc.inspBonus||0; pc.inspBonus=0; // consume inspiration die on this attack
   if (!crit&&roll+atk.hit_bonus+inspAdd<eac) return;
-  let dmg=rollDice(atk.damage); if(crit) dmg+=rollDice(atk.damage);
+  let dmg=rollDice(atk.damage); if(crit) dmg+=rollDiceOnly(atk.damage); // crit: dice only, not modifier
   if (pc.raging) dmg+=2;
   if (!skipSneak&&atk.sneak_attack) dmg+=rollDice(atk.sneak_attack);
   if (pc.class==='Paladin'&&pc.slots) { const sl=['3','2','1'].find(s=>(pc.slots[s]||0)>0); if(sl){pc.slots[sl]--;pc.slu++;pc.fuUsed['Divine Smite']=(pc.fuUsed['Divine Smite']||0)+1;dmg+=rollDice({'1':'2d8','2':'3d8','3':'4d8'}[sl]);} }
@@ -1826,8 +1839,15 @@ function bonusTurn(pc,allPcs,lm,trn) {
     if (pc.swActive) { const t=bestMonTarget(lm); if(t){const hbSW=t.hp;if(r20()+(swF?.hit_bonus||6)>=t.ac){const sdmg=rollDice(swF?.damage||'3d8+3');t.hp=Math.max(0,t.hp-sdmg);pc.dmgDealt=(pc.dmgDealt||0)+Math.min(sdmg,hbSW);if(t.hp===0)t.alive=false;}} }
   }
   if (pc.class==='Paladin'&&(pc.fu['Lay on Hands']||0)>0) {
-    const ta=allPcs.filter(p=>p.alive&&p.conscious&&p.hp<p.hp_max*.5).sort((a,b)=>a.hp-b.hp)[0];
-    if (ta) { ta.hp=Math.min(ta.hp_max,ta.hp+5);pc.fu['Lay on Hands']--;pc.fuUsed['Lay on Hands']=(pc.fuUsed['Lay on Hands']||0)+1; }
+    // Priority: revive a dying ally first, then heal a wounded one
+    const dying=allPcs.find(p=>p.alive&&!p.conscious&&!p.stable);
+    const wounded=allPcs.filter(p=>p.alive&&p.conscious&&p.hp<p.hp_max*.5).sort((a,b)=>a.hp-b.hp)[0];
+    const ta=dying||wounded;
+    if (ta) {
+      ta.hp=Math.min(ta.hp_max,ta.hp+5);
+      if (!ta.conscious) { ta.conscious=true; ta.ds=0; ta.df=0; } // healing revives and resets death saves
+      pc.fu['Lay on Hands']--;pc.fuUsed['Lay on Hands']=(pc.fuUsed['Lay on Hands']||0)+1;
+    }
   }
   if (pc.class==='Bard'&&(pc.fu['Bardic Inspiration']||0)>0) {
     // Give inspiration to the ally most likely to miss (lowest attack bonus relative to enemies)
@@ -1877,7 +1897,11 @@ function monTurn(m,mons,pcs,trn,hardcore) {
         if (save>=bw.dc) dmg=Math.floor(dmg/2);
         if (pc.resistNonPsychic&&bw.dmgType!=='psychic') dmg=Math.floor(dmg/2);
         pc.hp=Math.max(0,pc.hp-dmg);
-        if (pc.hp===0) { if(pc.conscious){pc.conscious=false;pc.ds=0;pc.df=0;pc.td=(pc.td||0)+1;} else{pc.df++;if(pc.df>=3)pc.alive=false;} }
+        if (pc.hp===0) {
+          if (pc.conscious&&dmg>=pc.hp_max) { pc.alive=false; } // massive damage instant death
+          else if (pc.conscious) { pc.conscious=false;pc.ds=0;pc.df=0;pc.td=(pc.td||0)+1; }
+          else { pc.df++;if(pc.df>=3)pc.alive=false; }
+        }
       }
       m.breathReady=false;
       return;
@@ -1887,9 +1911,9 @@ function monTurn(m,mons,pcs,trn,hardcore) {
     for (let i=0;i<multi;i++) {
       const cur=(tgt&&tgt.alive&&tgt.conscious)?tgt:bestPcTarget(pcs);
       if (!cur) {
-        // No conscious targets — press advantage on a downed PC (death save failure)
+        // No conscious targets — melee attack on downed PC = auto-crit = 2 death save failures
         const stomped=pcs.find(p=>p.alive&&!p.conscious&&!p.stable);
-        if (stomped) { stomped.df++; if(stomped.df>=3) stomped.alive=false; }
+        if (stomped) { stomped.df+=2; if(stomped.df>=3) stomped.alive=false; }
         continue;
       }
       doMonAtk(m,cur,trn,false);
@@ -1975,7 +1999,7 @@ function runCombatVerbose(pCfg,enc,trn,hardcore) {
           const total=roll+hit_bonus; const crit=(roll===20);
           const hits=crit||(total>=tgt.ac);
           let dmg=0;
-          if (hits) { dmg=rollDice(atk.damage); if(crit) dmg+=rollDice(atk.damage); }
+          if (hits) { dmg=rollDice(atk.damage); if(crit) dmg+=rollDiceOnly(atk.damage); }
           log.push({type:'attack',round:rnd,actor:pc.name,actorType:'pc',target:tgt.displayName,roll,bonus:hit_bonus,total,vs:tgt.ac,hit:hits,crit,damage:dmg,targetHpBefore:tgt.hp,targetHpAfter:Math.max(0,tgt.hp-(hits?dmg:0))});
         }
         pcTurn(pc,pcs,mons,trn);
@@ -1989,7 +2013,7 @@ function runCombatVerbose(pCfg,enc,trn,hardcore) {
           const atk=m.attacks[0];
           const roll=r20(); const total=roll+(atk.hit_bonus||0);
           const crit=(roll===20); const hits=crit||(total>=tgt.ac);
-          let dmg=0; if(hits){dmg=rollDice(atk.damage);if(crit)dmg+=rollDice(atk.damage);}
+          let dmg=0; if(hits){dmg=rollDice(atk.damage);if(crit)dmg+=rollDiceOnly(atk.damage);}
           log.push({type:'attack',round:rnd,actor:m.displayName,actorType:'monster',target:tgt.name,roll,bonus:atk.hit_bonus||0,total,vs:tgt.ac,hit:hits,crit,damage:dmg,targetHpBefore:tgt.hp,targetHpAfter:Math.max(0,tgt.hp-(hits?dmg:0))});
         }
         monTurn(m,mons,pcs,trn,hardcore);
@@ -2004,7 +2028,7 @@ function runCombatVerbose(pCfg,enc,trn,hardcore) {
         const atk=m.attacks[0];
         const roll=r20(); const total=roll+(atk.hit_bonus||0);
         const crit=(roll===20); const hits=crit||(total>=lt.ac);
-        let dmg=0; if(hits){dmg=rollDice(atk.damage);if(crit)dmg+=rollDice(atk.damage);}
+        let dmg=0; if(hits){dmg=rollDice(atk.damage);if(crit)dmg+=rollDiceOnly(atk.damage);}
         log.push({type:'legendary_action',round:rnd,actor:m.displayName,actorType:'monster',target:lt.name,roll,bonus:atk.hit_bonus||0,total,vs:lt.ac,hit:hits,crit,damage:dmg,targetHpBefore:lt.hp,targetHpAfter:Math.max(0,lt.hp-(hits?dmg:0))});
         doMonAtk(m,lt,trn,hardcore);
         pcs.forEach(pc=>{ if(pc.alive&&!pc.conscious&&!pc._loggedDown){pc._loggedDown=true;log.push({type:'pc_down',actor:pc.name,round:rnd});} if(!pc.alive&&!pc._loggedDead){pc._loggedDead=true;log.push({type:'pc_dead',actor:pc.name,round:rnd});} });
