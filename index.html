@@ -102,6 +102,41 @@ header{
 .slot-pip{display:inline-block;width:9px;height:9px;border-radius:50%;border:1px solid var(--blue);background:rgba(90,138,176,.3);margin-left:2px}
 .sheet-edit-btn{font-size:9px;padding:2px 7px;float:right;margin-top:-2px}
 
+/* ── Reference Tab ── */
+.ref-pill{background:var(--card2);border:1px solid var(--border);border-radius:20px;padding:5px 14px;font-size:12px;cursor:pointer;color:var(--text2);transition:all .15s;font-family:'Cinzel',serif}
+.ref-pill:hover{color:var(--text);border-color:var(--accent2)}
+.ref-pill.active{background:rgba(200,135,58,.15);border-color:var(--accent);color:var(--accent)}
+.ref-filter-sel{background:var(--card2);border:1px solid var(--border);border-radius:4px;color:var(--text2);padding:5px 8px;font-size:12px;font-family:inherit;cursor:pointer}
+.ref-table{width:100%;border-collapse:collapse;font-size:12px}
+.ref-table th{color:var(--text3);font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;padding:6px 8px;border-bottom:1px solid var(--border);text-align:left;cursor:pointer;user-select:none;white-space:nowrap;background:var(--card)}
+.ref-table th:hover{color:var(--text)}
+.ref-table td{padding:5px 8px;border-bottom:1px solid rgba(60,46,28,.4);vertical-align:middle;color:var(--text2)}
+.ref-table td:first-child{color:var(--text);font-weight:600}
+.ref-table tr:hover td{background:rgba(200,135,58,.05);cursor:pointer}
+.ref-tag{display:inline-block;padding:1px 6px;border-radius:3px;font-size:10px;margin:1px;font-weight:600}
+.ref-tag.school-A{background:rgba(90,138,176,.15);color:var(--blue)}
+.ref-tag.school-C{background:rgba(90,176,118,.15);color:#5ab076}
+.ref-tag.school-D{background:rgba(138,90,176,.15);color:#8a5ab0}
+.ref-tag.school-E{background:rgba(176,90,138,.15);color:#b05a8a}
+.ref-tag.school-I{background:rgba(90,138,176,.15);color:#7090b8}
+.ref-tag.school-N{background:rgba(90,90,90,.3);color:#a0a0a0}
+.ref-tag.school-T{background:rgba(90,176,90,.15);color:#5ab05a}
+.ref-tag.school-V{background:rgba(200,86,58,.15);color:var(--red)}
+.ref-tag.rarity-common{color:var(--text3);background:rgba(100,100,100,.1)}
+.ref-tag.rarity-uncommon{color:var(--green);background:rgba(90,158,106,.1)}
+.ref-tag.rarity-rare{color:var(--blue);background:rgba(90,138,176,.1)}
+.ref-tag.rarity-very-rare{color:var(--purple);background:rgba(154,106,176,.1)}
+.ref-tag.rarity-legendary{color:var(--gold);background:rgba(232,168,40,.1)}
+.ref-tag.rarity-artifact{color:#e84040;background:rgba(232,64,64,.1)}
+.ref-add-btn{font-size:10px;padding:2px 8px;white-space:nowrap}
+.ref-detail-prop{display:flex;gap:16px;flex-wrap:wrap;margin:8px 0 12px;font-size:12px}
+.ref-detail-prop span{color:var(--text2)}.ref-detail-prop strong{color:var(--text)}
+.ref-entries{font-size:13px;line-height:1.7;color:var(--text2)}
+.ref-entries p{margin-bottom:8px}
+.ref-entries .ref-entries-tbl{width:100%;border-collapse:collapse;margin:6px 0;font-size:11px}
+.ref-entries .ref-entries-tbl th,.ref-entries .ref-entries-tbl td{padding:3px 6px;border:1px solid var(--border)}
+.ref-entries .ref-entries-tbl th{background:var(--card2);color:var(--text3);font-size:10px;text-transform:uppercase}
+
 /* FORMS */
 .frow{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px}
 .frow3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:8px}
@@ -347,7 +382,8 @@ pre{background:var(--card2);border:1px solid var(--border);border-radius:6px;pad
   <div class="tabs-nav">
     <button class="tab-btn active" data-tab="setup"   onclick="switchTab('setup')">Setup</button>
     <button class="tab-btn"        data-tab="results" onclick="switchTab('results')">Results</button>
-    <button class="tab-btn"        data-tab="about"   onclick="switchTab('about')">About</button>
+    <button class="tab-btn"        data-tab="about"     onclick="switchTab('about')">About</button>
+    <button class="tab-btn"        data-tab="reference" onclick="switchTab('reference')">📖 Reference</button>
   </div>
 
   <!-- ========== SETUP ========== -->
@@ -763,7 +799,31 @@ pre{background:var(--card2);border:1px solid var(--border);border-radius:6px;pad
       </div>
     </div>
   </div>
+  <!-- ========== REFERENCE ========== -->
+  <div class="tab-panel" id="tab-reference">
+    <div class="container" style="padding-top:8px">
+      <div id="refSectionPills" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px">
+        <button class="ref-pill active" onclick="switchRefSection('spells')">📜 Spells</button>
+        <button class="ref-pill" onclick="switchRefSection('monsters')">🐉 Monsters</button>
+        <button class="ref-pill" onclick="switchRefSection('items')">⚔️ Magic Items</button>
+        <button class="ref-pill" onclick="switchRefSection('conditions')">🌀 Conditions</button>
+        <button class="ref-pill" onclick="switchRefSection('feats')">⭐ Feats</button>
+      </div>
+      <div id="refFilters" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;align-items:center">
+        <input id="refSearch" type="text" placeholder="Search..." oninput="applyRefFilters()"
+          style="flex:1;min-width:180px;padding:6px 10px;background:var(--card2);border:1px solid var(--border);border-radius:4px;color:var(--text);font-size:13px;font-family:inherit">
+        <span id="refCount" style="color:var(--text3);font-size:12px;margin-left:auto"></span>
+      </div>
+      <div id="refTable" style="overflow-x:auto"></div>
+    </div>
+  </div>
+
 </div><!-- /container -->
+
+<!-- Reference detail modal -->
+<div id="refDetail" class="modal-overlay" onclick="if(event.target===this)closeRefDetail()" style="display:none;z-index:300">
+  <div class="modal-box" style="max-width:660px;max-height:82vh;overflow-y:auto;padding:20px" id="refDetailBox"></div>
+</div>
 
 <script>
 'use strict';
@@ -856,6 +916,19 @@ const encounterNotes = {'open-field':'','dungeon':'','forest':''};
 let lastResults = null;
 let charts = {};
 let sheetView = true;  // show Roll20-style character sheets by default
+
+// ── Reference tab state ──
+const REF_BASE = 'https://raw.githubusercontent.com/5etools-mirror-3/5etools-src/master/';
+const REF_SOURCES = {
+  spells:     ['data/spells/spells-phb.json','data/spells/spells-xge.json','data/spells/spells-tce.json'],
+  items:      ['data/items.json'],
+  conditions: ['data/conditionsdiseases.json'],
+  feats:      ['data/feats.json'],
+};
+let refData    = {spells:null,monsters:null,items:null,conditions:null,feats:null};
+let refSection = 'spells';
+let refSortKey = null, refSortDir = 1;
+let refFiltered = [];  // last filtered+sorted list (for detail lookup by index)
 
 function deepClonePC(pc) {
   return {...pc, attacks:pc.attacks.map(a=>({...a})), features:pc.features.map(f=>({...f})), spell_slots:{...(pc.spell_slots||{})}};
@@ -2716,11 +2789,416 @@ function exportCSV() {
 function dl(name,content,type) { const a=Object.assign(document.createElement('a'),{href:URL.createObjectURL(new Blob([content],{type})),download:name}); a.click(); URL.revokeObjectURL(a.href); }
 
 // ============================================================
+// REFERENCE TAB
+// ============================================================
+
+const SCHOOL_NAME = {A:'Abjuration',C:'Conjuration',D:'Divination',E:'Enchantment',I:'Illusion',N:'Necromancy',T:'Transmutation',V:'Evocation'};
+const SCHOOL_ABR  = {A:'Abjur.',C:'Conj.',D:'Divin.',E:'Ench.',I:'Illus.',N:'Necro.',T:'Trans.',V:'Evoc.'};
+const SPELL_CLASSES = ['Artificer','Bard','Cleric','Druid','Paladin','Ranger','Sorcerer','Warlock','Wizard'];
+const ITEM_TYPES = {S:'Sword',A:'Armor',M:'Melee Weapon',R:'Ranged Weapon',P:'Potion',SC:'Scroll',RD:'Rod',ST:'Staff',WD:'Wand',RG:'Ring',G:'Adventuring Gear',HA:'Heavy Armor',MA:'Medium Armor',LA:'Light Armor',SH:'Shield','$':'Valuable Object'};
+
+async function loadRefSection(sec) {
+  if (refData[sec]) return;
+  if (sec === 'monsters') { refData.monsters = allMonsters; return; }
+  const urls = REF_SOURCES[sec];
+  document.getElementById('refTable').innerHTML = '<div style="padding:32px;text-align:center;color:var(--text3)">Loading…</div>';
+  try {
+    const results = await Promise.all(urls.map(u => fetch(REF_BASE+u).then(r=>r.json()).catch(()=>({}))));
+    if (sec==='spells')     refData.spells     = results.flatMap(r=>r.spell||[]);
+    else if (sec==='items') refData.items      = [...(results[0].item||[]),...(results[0].itemGroup||[])];
+    else if (sec==='conditions') refData.conditions = [...(results[0].condition||[]),...(results[0].disease||[])];
+    else if (sec==='feats') refData.feats      = results[0].feat||[];
+  } catch(e) {
+    document.getElementById('refTable').innerHTML = `<div style="padding:24px;color:var(--red)">Failed to load data. Check connection.</div>`;
+  }
+}
+
+function injectRefFilters(sec) {
+  // Remove old dynamic filters
+  document.querySelectorAll('.ref-dyn-filter').forEach(el=>el.remove());
+  const bar = document.getElementById('refFilters');
+  const mk = (id,opts,label)=>{
+    const s=document.createElement('select');
+    s.id=id; s.className='ref-filter-sel ref-dyn-filter'; s.title=label;
+    s.innerHTML=`<option value="all">${label}: All</option>`+opts.map(o=>`<option value="${o.v||o}">${o.l||o}</option>`).join('');
+    s.onchange=applyRefFilters;
+    bar.insertBefore(s, document.getElementById('refCount'));
+  };
+  if (sec==='spells') {
+    mk('refFLevel',[{v:'0',l:'Cantrip'},...[1,2,3,4,5,6,7,8,9].map(n=>({v:String(n),l:`Level ${n}`}))],'Level');
+    mk('refFSchool',Object.entries(SCHOOL_NAME).map(([v,l])=>({v,l})),'School');
+    mk('refFClass',SPELL_CLASSES,'Class');
+  } else if (sec==='monsters') {
+    mk('refFCR',[{v:'0',l:'CR 0'},{v:'0.125',l:'CR ¼'},{v:'0.25',l:'CR ½'},
+      ...[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,30].map(n=>({v:String(n),l:`CR ${n}`}))
+    ],'CR');
+    const types=[...new Set(allMonsters.map(m=>m.type||'').filter(Boolean))].sort();
+    mk('refFType',types,'Type');
+  } else if (sec==='items') {
+    mk('refFRarity',['common','uncommon','rare','very rare','legendary','artifact'],'Rarity');
+    mk('refFAttune',[{v:'yes',l:'Requires Attunement'},{v:'no',l:'No Attunement'}],'Attunement');
+  }
+}
+
+async function switchRefSection(sec) {
+  refSection = sec;
+  refSortKey = null; refSortDir = 1;
+  document.querySelectorAll('.ref-pill').forEach(p=>{
+    const t = p.textContent.replace(/[^a-z]/gi,'').toLowerCase();
+    p.classList.toggle('active', t.startsWith(sec.slice(0,4)));
+  });
+  document.getElementById('refSearch').value='';
+  document.querySelectorAll('.ref-dyn-filter').forEach(el=>el.remove());
+  document.getElementById('refTable').innerHTML='<div style="padding:32px;text-align:center;color:var(--text3)">Loading…</div>';
+  await loadRefSection(sec);
+  injectRefFilters(sec);
+  applyRefFilters();
+}
+
+function spellCastTime(sp) {
+  if (!sp.time||!sp.time.length) return '—';
+  const t=sp.time[0];
+  return (t.number>1?t.number+' ':'')+t.unit+(t.condition?' *':'');
+}
+function spellRange(sp) {
+  if (!sp.range) return '—';
+  const r=sp.range;
+  if (r.type==='special') return 'Special';
+  if (r.type==='point') {
+    const d=r.distance;
+    if (!d) return '—';
+    if (d.type==='self') return 'Self';
+    if (d.type==='touch') return 'Touch';
+    if (d.type==='unlimited') return 'Unlimited';
+    if (d.type==='sight') return 'Sight';
+    return (d.amount||0)+' ft.';
+  }
+  if (r.distance) { const d=r.distance; return (d.amount||0)+' ft. '+r.type; }
+  return r.type||'—';
+}
+function spellDuration(sp) {
+  if (!sp.duration||!sp.duration.length) return '—';
+  const d=sp.duration[0];
+  if (d.type==='instant') return 'Instantaneous';
+  if (d.type==='permanent') return 'Permanent';
+  if (d.type==='special') return 'Special';
+  if (d.type==='timed') {
+    const conc=d.concentration?' (C)':'';
+    return (d.duration?.amount||1)+' '+(d.duration?.type||'round')+conc;
+  }
+  return d.type||'—';
+}
+function spellComponents(sp) {
+  if (!sp.components) return '—';
+  const c=sp.components;
+  const parts=[];
+  if (c.v) parts.push('V'); if (c.s) parts.push('S'); if (c.m) parts.push('M');
+  return parts.join(', ')||'—';
+}
+function spellClasses(sp) {
+  return (sp.classes?.fromClassList||[]).map(c=>c.name).join(', ')||'—';
+}
+
+// Render 5etools entries array as HTML
+function renderEntries(entries, depth=0) {
+  if (!entries||!entries.length) return '';
+  let out='';
+  for (const e of entries) {
+    if (typeof e==='string') {
+      out+=`<p>${stripTags(e)}</p>`;
+    } else if (e.type==='entries'||e.type==='section') {
+      if (e.name) out+=`<p><strong>${e.name}.</strong> `;
+      out+=renderEntries(e.entries,depth+1);
+      if (e.name) out+='</p>';
+    } else if (e.type==='list') {
+      out+='<ul style="padding-left:18px;margin:4px 0">';
+      for (const item of (e.items||[])) {
+        if (typeof item==='string') out+=`<li>${stripTags(item)}</li>`;
+        else if (item.type==='item') out+=`<li><em>${item.name||''}</em>${item.entries?'. '+renderEntries(item.entries,depth+1):''}`;
+        else out+=`<li>${renderEntries([item],depth+1)}</li>`;
+      }
+      out+='</ul>';
+    } else if (e.type==='table') {
+      out+='<table class="ref-entries-tbl"><thead><tr>';
+      (e.colLabels||[]).forEach(h=>{ out+=`<th>${stripTags(h)}</th>`; });
+      out+='</tr></thead><tbody>';
+      (e.rows||[]).forEach(row=>{
+        out+='<tr>';
+        (Array.isArray(row)?row:[row]).forEach(cell=>{
+          out+=`<td>${typeof cell==='string'?stripTags(cell):(cell?.roll?`${cell.roll.exact??cell.roll.min+'-'+cell.roll.max}`:(stripTags(String(cell||''))))}</td>`;
+        });
+        out+='</tr>';
+      });
+      out+='</tbody></table>';
+    } else if (e.type==='quote') {
+      out+=`<blockquote style="border-left:2px solid var(--border);padding-left:10px;color:var(--text3);font-style:italic">${renderEntries(e.entries,depth+1)}</blockquote>`;
+    } else if (typeof e==='object' && e.entries) {
+      out+=renderEntries(e.entries,depth+1);
+    }
+  }
+  return out;
+}
+
+function applyRefFilters() {
+  const q=(document.getElementById('refSearch')?.value||'').toLowerCase().trim();
+  let rows=(refData[refSection]||[]).slice();
+
+  // Search
+  if (q) rows=rows.filter(r=>(r.name||'').toLowerCase().includes(q));
+
+  // Section-specific filters
+  if (refSection==='spells') {
+    const lvl=document.getElementById('refFLevel')?.value||'all';
+    const sch=document.getElementById('refFSchool')?.value||'all';
+    const cls=document.getElementById('refFClass')?.value||'all';
+    if (lvl!=='all') rows=rows.filter(r=>String(r.level||0)===lvl);
+    if (sch!=='all') rows=rows.filter(r=>r.school===sch);
+    if (cls!=='all') rows=rows.filter(r=>(r.classes?.fromClassList||[]).some(c=>c.name===cls));
+  } else if (refSection==='monsters') {
+    const cr=document.getElementById('refFCR')?.value||'all';
+    const tp=document.getElementById('refFType')?.value||'all';
+    if (cr!=='all') rows=rows.filter(r=>String(r.cr||0)===cr);
+    if (tp!=='all') rows=rows.filter(r=>(r.type||'')===tp);
+  } else if (refSection==='items') {
+    const rar=document.getElementById('refFRarity')?.value||'all';
+    const att=document.getElementById('refFAttune')?.value||'all';
+    if (rar!=='all') rows=rows.filter(r=>(r.rarity||'').toLowerCase()===rar);
+    if (att==='yes') rows=rows.filter(r=>r.reqAttune);
+    else if (att==='no') rows=rows.filter(r=>!r.reqAttune);
+  }
+
+  // Sort
+  if (refSortKey) {
+    rows=[...rows].sort((a,b)=>{
+      let av=a[refSortKey]??'', bv=b[refSortKey]??'';
+      // Numeric sort for level/cr
+      if (refSortKey==='level'||refSortKey==='cr') { av=parseFloat(av)||0; bv=parseFloat(bv)||0; }
+      else { av=String(av).toLowerCase(); bv=String(bv).toLowerCase(); }
+      return (av<bv?-1:av>bv?1:0)*refSortDir;
+    });
+  }
+
+  refFiltered = rows;
+  const total = rows.length;
+  const visible = rows.slice(0,200);
+  const countEl = document.getElementById('refCount');
+  if (countEl) countEl.textContent = total>200?`Showing 200 of ${total} — refine search`:(`${total} result${total!==1?'s':''}`);
+  document.getElementById('refTable').innerHTML = renderRefTable(refSection, visible);
+}
+
+function refSortBy(key) {
+  if (refSortKey===key) refSortDir*=-1; else { refSortKey=key; refSortDir=1; }
+  applyRefFilters();
+}
+
+function renderRefTable(sec, rows) {
+  if (!rows.length) return '<div style="padding:24px;color:var(--text3)">No results.</div>';
+  const arrow = k => refSortKey===k?(refSortDir===1?' ▲':' ▼'):'';
+  let html='<table class="ref-table"><thead><tr>';
+
+  if (sec==='spells') {
+    html+=`<th onclick="refSortBy('name')">Name${arrow('name')}</th>
+           <th onclick="refSortBy('level')">Lvl${arrow('level')}</th>
+           <th onclick="refSortBy('school')">School${arrow('school')}</th>
+           <th>Classes</th>
+           <th>Casting</th>
+           <th>Range</th>
+           <th>Duration</th>
+           <th></th>`;
+  } else if (sec==='monsters') {
+    html+=`<th onclick="refSortBy('name')">Name${arrow('name')}</th>
+           <th onclick="refSortBy('cr')">CR${arrow('cr')}</th>
+           <th onclick="refSortBy('type')">Type${arrow('type')}</th>
+           <th onclick="refSortBy('hp_max')">HP${arrow('hp_max')}</th>
+           <th onclick="refSortBy('ac')">AC${arrow('ac')}</th>
+           <th></th>`;
+  } else if (sec==='items') {
+    html+=`<th onclick="refSortBy('name')">Name${arrow('name')}</th>
+           <th onclick="refSortBy('type')">Type${arrow('type')}</th>
+           <th onclick="refSortBy('rarity')">Rarity${arrow('rarity')}</th>
+           <th>Attune</th>
+           <th onclick="refSortBy('source')">Source${arrow('source')}</th>`;
+  } else if (sec==='conditions') {
+    html+=`<th onclick="refSortBy('name')">Name${arrow('name')}</th>
+           <th>Type</th>`;
+  } else if (sec==='feats') {
+    html+=`<th onclick="refSortBy('name')">Name${arrow('name')}</th>
+           <th>Prerequisite</th>
+           <th onclick="refSortBy('source')">Source${arrow('source')}</th>`;
+  }
+  html+='</tr></thead><tbody>';
+
+  rows.forEach((r,i)=>{
+    const idx = refFiltered.indexOf(r);
+    if (sec==='spells') {
+      const lvlStr = r.level===0?'C':r.level;
+      const sch = r.school||'';
+      const clsList = spellClasses(r);
+      html+=`<tr onclick="openRefDetail(${idx})">
+        <td>${r.name||'?'}</td>
+        <td>${lvlStr}</td>
+        <td><span class="ref-tag school-${sch}">${SCHOOL_ABR[sch]||sch}</span></td>
+        <td style="color:var(--text3);font-size:11px">${clsList}</td>
+        <td style="font-size:11px">${spellCastTime(r)}</td>
+        <td style="font-size:11px">${spellRange(r)}</td>
+        <td style="font-size:11px">${spellDuration(r)}</td>
+        <td onclick="event.stopPropagation()"><button class="btn btn-secondary btn-sm ref-add-btn" onclick="addSpellToPC(${idx})">+ PC</button></td>
+      </tr>`;
+    } else if (sec==='monsters') {
+      const crStr = r.cr===0.125?'¼':r.cr===0.25?'½':r.cr===0.5?'½':String(r.cr||0);
+      html+=`<tr onclick="openRefDetail(${idx})">
+        <td>${r.name||'?'}</td>
+        <td>${crStr}</td>
+        <td style="font-size:11px">${r.type||'—'}</td>
+        <td>${r.hp_max||'?'}</td>
+        <td>${r.ac||'?'}</td>
+        <td onclick="event.stopPropagation()"><button class="btn btn-secondary btn-sm ref-add-btn" onclick="addRefMonToEnc(${idx})">+ Enc</button></td>
+      </tr>`;
+    } else if (sec==='items') {
+      const rar = (r.rarity||'none').toLowerCase().replace(' ','-');
+      const typeName = ITEM_TYPES[r.type]||r.type||'—';
+      html+=`<tr onclick="openRefDetail(${idx})">
+        <td>${r.name||'?'}</td>
+        <td style="font-size:11px">${typeName}</td>
+        <td><span class="ref-tag rarity-${rar}">${r.rarity||'—'}</span></td>
+        <td style="font-size:11px">${r.reqAttune?(typeof r.reqAttune==='string'?r.reqAttune:'Yes'):'No'}</td>
+        <td style="font-size:11px;color:var(--text3)">${r.source||'—'}</td>
+      </tr>`;
+    } else if (sec==='conditions') {
+      const tp = r.type||'condition';
+      html+=`<tr onclick="openRefDetail(${idx})">
+        <td>${r.name||'?'}</td>
+        <td style="font-size:11px;color:var(--text3)">${tp}</td>
+      </tr>`;
+    } else if (sec==='feats') {
+      const prereq = (r.prerequisite||[]).map(p=>{
+        if (p.ability) return Object.keys(p.ability[0]||{}).join('/').toUpperCase()+' 13+';
+        if (p.race) return p.race.map(rr=>rr.displayEntry||rr.name||'').join(' or ');
+        if (p.spellcasting) return 'Spellcasting';
+        if (p.proficiency) return 'Proficiency';
+        return Object.keys(p)[0]||'';
+      }).filter(Boolean).join(', ')||'None';
+      html+=`<tr onclick="openRefDetail(${idx})">
+        <td>${r.name||'?'}</td>
+        <td style="font-size:11px;color:var(--text3)">${prereq}</td>
+        <td style="font-size:11px;color:var(--text3)">${r.source||'—'}</td>
+      </tr>`;
+    }
+  });
+  return html+'</tbody></table>';
+}
+
+function openRefDetail(idx) {
+  const item = refFiltered[idx];
+  if (!item) return;
+  document.getElementById('refDetailBox').innerHTML = renderRefDetail(item);
+  document.getElementById('refDetail').style.display='flex';
+}
+function closeRefDetail() {
+  document.getElementById('refDetail').style.display='none';
+}
+
+function renderRefDetail(item) {
+  const sec = refSection;
+  let html=`<button class="btn btn-secondary btn-sm" onclick="closeRefDetail()" style="float:right;margin-top:-4px">✕ Close</button>`;
+
+  if (sec==='spells') {
+    const sch = item.school||'';
+    const lvlStr = item.level===0?'Cantrip':`Level ${item.level}`;
+    const comps = spellComponents(item);
+    const matNote = item.components?.m?(typeof item.components.m==='object'?item.components.m.text:item.components.m):'';
+    html+=`<div class="sheet-name" style="font-size:16px;margin-bottom:4px">${item.name}</div>
+    <div style="color:var(--text3);font-size:12px;margin-bottom:10px">${lvlStr} &nbsp;·&nbsp; <span class="ref-tag school-${sch}">${SCHOOL_NAME[sch]||sch}</span> &nbsp;·&nbsp; ${item.source||''}</div>
+    <div class="ref-detail-prop">
+      <div><strong>Casting Time</strong><br><span>${spellCastTime(item)}</span></div>
+      <div><strong>Range</strong><br><span>${spellRange(item)}</span></div>
+      <div><strong>Components</strong><br><span>${comps}${matNote?` <span style="color:var(--text3);font-size:11px">(${matNote})</span>`:''}</span></div>
+      <div><strong>Duration</strong><br><span>${spellDuration(item)}</span></div>
+    </div>
+    <div style="color:var(--text3);font-size:11px;margin-bottom:10px">Classes: ${spellClasses(item)}</div>
+    <div class="ref-entries">${renderEntries(item.entries||[])}</div>
+    ${item.entriesHigherLevel?`<div style="margin-top:10px;padding:8px;background:var(--card);border-radius:4px;font-size:12px"><strong style="color:var(--accent)">At Higher Levels.</strong> ${renderEntries(item.entriesHigherLevel[0]?.entries||[])}</div>`:''}
+    <div style="margin-top:12px"><button class="btn btn-secondary btn-sm" onclick="addSpellToPC(refFiltered.findIndex(s=>s.name===\`${item.name}\`))">+ Add to PC</button></div>`;
+
+  } else if (sec==='monsters') {
+    html+=buildStatBlockCard(item, true);
+    const idx2 = refFiltered.indexOf(item);
+    html+=`<div style="margin-top:12px"><button class="btn btn-secondary btn-sm" onclick="addRefMonToEnc(${idx2});closeRefDetail()">+ Add to Encounter</button></div>`;
+
+  } else if (sec==='items') {
+    const rar=(item.rarity||'—');
+    const typeName=ITEM_TYPES[item.type]||item.type||'—';
+    html+=`<div class="sheet-name" style="font-size:16px;margin-bottom:4px">${item.name}</div>
+    <div class="ref-detail-prop" style="margin-bottom:10px">
+      <div><strong>Type</strong><br><span>${typeName}</span></div>
+      <div><strong>Rarity</strong><br><span class="ref-tag rarity-${rar.toLowerCase().replace(' ','-')}">${rar}</span></div>
+      <div><strong>Attunement</strong><br><span>${item.reqAttune?(typeof item.reqAttune==='string'?item.reqAttune:'Required'):'Not Required'}</span></div>
+      <div><strong>Source</strong><br><span>${item.source||'—'}</span></div>
+    </div>
+    <div class="ref-entries">${renderEntries(item.entries||[])}</div>`;
+
+  } else {
+    // conditions + feats
+    const prereq = sec==='feats'?((item.prerequisite||[]).map(p=>{
+      if (p.ability) return Object.keys(p.ability[0]||{}).join('/').toUpperCase()+' 13+';
+      if (p.race) return p.race.map(rr=>rr.displayEntry||rr.name||'').join(' or ');
+      if (p.spellcasting) return 'Spellcasting';
+      return Object.keys(p)[0]||'';
+    }).filter(Boolean).join(', ')||'None'):'';
+    html+=`<div class="sheet-name" style="font-size:16px;margin-bottom:4px">${item.name}</div>
+    ${prereq?`<div style="color:var(--text3);font-size:12px;margin-bottom:10px">Prerequisite: ${prereq}</div>`:''}
+    <div style="color:var(--text3);font-size:11px;margin-bottom:10px">Source: ${item.source||'—'}</div>
+    <div class="ref-entries">${renderEntries(item.entries||[])}</div>`;
+  }
+  return html;
+}
+
+function addSpellToPC(idx) {
+  const sp = refFiltered[idx];
+  if (!sp||!party.length) return;
+  // Add to first PC for now — could later show a picker
+  const pc = party[0];
+  if (!pc.features) pc.features=[];
+  const already = pc.features.find(f=>f.name===sp.name);
+  if (already) { alert(`${sp.name} is already on ${pc.name}'s sheet.`); return; }
+  const feat = {name:sp.name, uses:1, spellLevel:sp.level||0};
+  if ((sp.damageInflict||[]).length) feat.damage='varies';
+  if ((sp.savingThrow||[]).length) feat.saveDC=pc.spell_save_dc||14;
+  pc.features.push(feat);
+  if (typeof renderParty==='function') renderParty();
+  // Brief toast
+  const t=document.createElement('div');
+  t.textContent=`✓ ${sp.name} added to ${pc.name}`;
+  t.style.cssText='position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--card2);border:1px solid var(--accent);padding:8px 16px;border-radius:6px;font-size:13px;color:var(--accent);z-index:9999;pointer-events:none';
+  document.body.appendChild(t);
+  setTimeout(()=>t.remove(),2500);
+}
+
+function addRefMonToEnc(idx) {
+  const m = refFiltered[idx];
+  if (!m) return;
+  // Add to currently active map tab
+  const activeMap = document.querySelector('.map-tab.active')?.dataset?.map || 'open-field';
+  const enc = encounters[activeMap];
+  const existing = enc.find(e=>e.name===m.name);
+  if (existing) { existing.count=(existing.count||1)+1; }
+  else { enc.push({name:m.name,count:1,data:m}); }
+  if (typeof renderEnc==='function') renderEnc(activeMap);
+  if (typeof updateBudgets==='function') updateBudgets();
+  const t=document.createElement('div');
+  t.textContent=`✓ ${m.name} added to encounter`;
+  t.style.cssText='position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--card2);border:1px solid var(--accent);padding:8px 16px;border-radius:6px;font-size:13px;color:var(--accent);z-index:9999;pointer-events:none';
+  document.body.appendChild(t);
+  setTimeout(()=>t.remove(),2500);
+}
+
+// ============================================================
 // UI
 // ============================================================
 function switchTab(name) {
   document.querySelectorAll('.tab-btn').forEach(b=>b.classList.toggle('active',b.dataset.tab===name));
   document.querySelectorAll('.tab-panel').forEach(p=>p.classList.toggle('active',p.id==='tab-'+name));
+  if (name==='reference' && !refData.spells) switchRefSection('spells');
 }
 function switchMap(mapId) {
   document.querySelectorAll('.map-tab').forEach(b=>b.classList.toggle('active',b.dataset.map===mapId));
