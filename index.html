@@ -129,6 +129,10 @@ header{
 .ref-tag.rarity-legendary{color:var(--gold);background:rgba(232,168,40,.1)}
 .ref-tag.rarity-artifact{color:#e84040;background:rgba(232,64,64,.1)}
 .ref-add-btn{font-size:10px;padding:2px 8px;white-space:nowrap}
+.ref-row-active td{background:rgba(200,135,58,.08)!important;color:var(--text)}
+.ref-row-active td:first-child{color:var(--accent)}
+.ref-expand-body{padding:14px 18px;background:var(--card2);font-size:13px;line-height:1.7}
+tr#refExpandRow td{padding:0!important;background:var(--card2)}
 .ref-detail-prop{display:flex;gap:16px;flex-wrap:wrap;margin:8px 0 12px;font-size:12px}
 .ref-detail-prop span{color:var(--text2)}.ref-detail-prop strong{color:var(--text)}
 .ref-entries{font-size:13px;line-height:1.7;color:var(--text2)}
@@ -3033,8 +3037,8 @@ function renderRefTable(sec, rows) {
       const lvlStr = r.level===0?'C':r.level;
       const sch = r.school||'';
       const clsList = spellClasses(r);
-      html+=`<tr onclick="openRefDetail(${idx})">
-        <td>${r.name||'?'}</td>
+      html+=`<tr data-ridx="${idx}" onclick="toggleRefExpand(${idx})" style="cursor:pointer">
+        <td>▶ ${r.name||'?'}</td>
         <td>${lvlStr}</td>
         <td><span class="ref-tag school-${sch}">${SCHOOL_ABR[sch]||sch}</span></td>
         <td style="color:var(--text3);font-size:11px">${clsList}</td>
@@ -3045,8 +3049,8 @@ function renderRefTable(sec, rows) {
       </tr>`;
     } else if (sec==='monsters') {
       const crStr = r.cr===0.125?'¼':r.cr===0.25?'½':r.cr===0.5?'½':String(r.cr||0);
-      html+=`<tr onclick="openRefDetail(${idx})">
-        <td>${r.name||'?'}</td>
+      html+=`<tr data-ridx="${idx}" onclick="toggleRefExpand(${idx})" style="cursor:pointer">
+        <td>▶ ${r.name||'?'}</td>
         <td>${crStr}</td>
         <td style="font-size:11px">${r.type||'—'}</td>
         <td>${r.hp_max||'?'}</td>
@@ -3054,10 +3058,10 @@ function renderRefTable(sec, rows) {
         <td onclick="event.stopPropagation()"><button class="btn btn-secondary btn-sm ref-add-btn" onclick="addRefMonToEnc(${idx})">+ Enc</button></td>
       </tr>`;
     } else if (sec==='items') {
-      const rar = (r.rarity||'none').toLowerCase().replace(' ','-');
+      const rar = (r.rarity||'none').toLowerCase().replace(/ /g,'-');
       const typeName = ITEM_TYPES[r.type]||r.type||'—';
-      html+=`<tr onclick="openRefDetail(${idx})">
-        <td>${r.name||'?'}</td>
+      html+=`<tr data-ridx="${idx}" onclick="toggleRefExpand(${idx})" style="cursor:pointer">
+        <td>▶ ${r.name||'?'}</td>
         <td style="font-size:11px">${typeName}</td>
         <td><span class="ref-tag rarity-${rar}">${r.rarity||'—'}</span></td>
         <td style="font-size:11px">${r.reqAttune?(typeof r.reqAttune==='string'?r.reqAttune:'Yes'):'No'}</td>
@@ -3065,8 +3069,8 @@ function renderRefTable(sec, rows) {
       </tr>`;
     } else if (sec==='conditions') {
       const tp = r.type||'condition';
-      html+=`<tr onclick="openRefDetail(${idx})">
-        <td>${r.name||'?'}</td>
+      html+=`<tr data-ridx="${idx}" onclick="toggleRefExpand(${idx})" style="cursor:pointer">
+        <td>▶ ${r.name||'?'}</td>
         <td style="font-size:11px;color:var(--text3)">${tp}</td>
       </tr>`;
     } else if (sec==='feats') {
@@ -3077,8 +3081,8 @@ function renderRefTable(sec, rows) {
         if (p.proficiency) return 'Proficiency';
         return Object.keys(p)[0]||'';
       }).filter(Boolean).join(', ')||'None';
-      html+=`<tr onclick="openRefDetail(${idx})">
-        <td>${r.name||'?'}</td>
+      html+=`<tr data-ridx="${idx}" onclick="toggleRefExpand(${idx})" style="cursor:pointer">
+        <td>▶ ${r.name||'?'}</td>
         <td style="font-size:11px;color:var(--text3)">${prereq}</td>
         <td style="font-size:11px;color:var(--text3)">${r.source||'—'}</td>
       </tr>`;
@@ -3087,70 +3091,113 @@ function renderRefTable(sec, rows) {
   return html+'</tbody></table>';
 }
 
-function openRefDetail(idx) {
+let refExpandedIdx = -1;
+
+function toggleRefExpand(idx) {
+  // Remove any existing expand row
+  const old = document.getElementById('refExpandRow');
+  if (old) old.remove();
+  document.querySelectorAll('.ref-row-active').forEach(r=>r.classList.remove('ref-row-active'));
+
+  if (refExpandedIdx===idx) { refExpandedIdx=-1; return; }  // collapse
+  refExpandedIdx = idx;
+
   const item = refFiltered[idx];
   if (!item) return;
-  document.getElementById('refDetailBox').innerHTML = renderRefDetail(item);
-  document.getElementById('refDetail').style.display='flex';
+
+  const row = document.querySelector(`tr[data-ridx="${idx}"]`);
+  if (!row) return;
+  row.classList.add('ref-row-active');
+
+  const colCount = row.cells.length;
+  const expandRow = document.createElement('tr');
+  expandRow.id = 'refExpandRow';
+  expandRow.innerHTML = `<td colspan="${colCount}" style="padding:0;border-bottom:2px solid var(--accent2)">
+    <div class="ref-expand-body">${renderRefExpandContent(item, idx)}</div>
+  </td>`;
+  row.after(expandRow);
+  expandRow.scrollIntoView({behavior:'smooth', block:'nearest'});
 }
+function openRefDetail(idx) { toggleRefExpand(idx); }
 function closeRefDetail() {
-  document.getElementById('refDetail').style.display='none';
+  const old = document.getElementById('refExpandRow');
+  if (old) old.remove();
+  document.querySelectorAll('.ref-row-active').forEach(r=>r.classList.remove('ref-row-active'));
+  refExpandedIdx=-1;
 }
 
-function renderRefDetail(item) {
+function renderRefExpandContent(item, idx) {
   const sec = refSection;
-  let html=`<button class="btn btn-secondary btn-sm" onclick="closeRefDetail()" style="float:right;margin-top:-4px">✕ Close</button>`;
+  let html = '';
 
   if (sec==='spells') {
     const sch = item.school||'';
     const lvlStr = item.level===0?'Cantrip':`Level ${item.level}`;
     const comps = spellComponents(item);
     const matNote = item.components?.m?(typeof item.components.m==='object'?item.components.m.text:item.components.m):'';
-    html+=`<div class="sheet-name" style="font-size:16px;margin-bottom:4px">${item.name}</div>
-    <div style="color:var(--text3);font-size:12px;margin-bottom:10px">${lvlStr} &nbsp;·&nbsp; <span class="ref-tag school-${sch}">${SCHOOL_NAME[sch]||sch}</span> &nbsp;·&nbsp; ${item.source||''}</div>
-    <div class="ref-detail-prop">
-      <div><strong>Casting Time</strong><br><span>${spellCastTime(item)}</span></div>
-      <div><strong>Range</strong><br><span>${spellRange(item)}</span></div>
-      <div><strong>Components</strong><br><span>${comps}${matNote?` <span style="color:var(--text3);font-size:11px">(${matNote})</span>`:''}</span></div>
-      <div><strong>Duration</strong><br><span>${spellDuration(item)}</span></div>
-    </div>
-    <div style="color:var(--text3);font-size:11px;margin-bottom:10px">Classes: ${spellClasses(item)}</div>
-    <div class="ref-entries">${renderEntries(item.entries||[])}</div>
-    ${item.entriesHigherLevel?`<div style="margin-top:10px;padding:8px;background:var(--card);border-radius:4px;font-size:12px"><strong style="color:var(--accent)">At Higher Levels.</strong> ${renderEntries(item.entriesHigherLevel[0]?.entries||[])}</div>`:''}
-    <div style="margin-top:12px"><button class="btn btn-secondary btn-sm" onclick="addSpellToPC(refFiltered.findIndex(s=>s.name===\`${item.name}\`))">+ Add to PC</button></div>`;
+    html+=`<div style="display:flex;gap:16px;flex-wrap:wrap;align-items:flex-start">
+      <div style="flex:1;min-width:260px">
+        <div class="sheet-name" style="font-size:15px;margin-bottom:3px">${item.name}
+          <span style="font-size:11px;font-weight:normal;color:var(--text3);margin-left:8px">${lvlStr} &nbsp;·&nbsp; <span class="ref-tag school-${sch}">${SCHOOL_NAME[sch]||sch}</span> &nbsp;·&nbsp; ${item.source||''}</span>
+        </div>
+        <div class="ref-detail-prop" style="margin:6px 0 8px">
+          <div><strong>Casting</strong><br><span>${spellCastTime(item)}</span></div>
+          <div><strong>Range</strong><br><span>${spellRange(item)}</span></div>
+          <div><strong>Components</strong><br><span>${comps}${matNote?` <span style="color:var(--text3);font-size:10px">(${matNote})</span>`:''}</span></div>
+          <div><strong>Duration</strong><br><span>${spellDuration(item)}</span></div>
+        </div>
+        <div style="color:var(--text3);font-size:11px;margin-bottom:8px">Classes: ${spellClasses(item)}</div>
+      </div>
+      <div style="flex:2;min-width:260px">
+        <div class="ref-entries">${renderEntries(item.entries||[])}</div>
+        ${item.entriesHigherLevel?`<div style="margin-top:8px;padding:8px;background:var(--card);border-radius:4px;font-size:12px"><strong style="color:var(--accent)">At Higher Levels.</strong> ${renderEntries(item.entriesHigherLevel[0]?.entries||item.entriesHigherLevel||[])}</div>`:''}
+        <div style="margin-top:10px"><button class="btn btn-secondary btn-sm" onclick="event.stopPropagation();addSpellToPC(${idx})">+ Add to PC</button></div>
+      </div>
+    </div>`;
 
   } else if (sec==='monsters') {
-    html+=buildStatBlockCard(item, true);
-    const idx2 = refFiltered.indexOf(item);
-    html+=`<div style="margin-top:12px"><button class="btn btn-secondary btn-sm" onclick="addRefMonToEnc(${idx2});closeRefDetail()">+ Add to Encounter</button></div>`;
+    html+=`<div style="max-width:640px">${buildStatBlockCard(item, false)}</div>
+    <div style="margin-top:10px"><button class="btn btn-secondary btn-sm" onclick="event.stopPropagation();addRefMonToEnc(${idx})">+ Add to Encounter</button></div>`;
 
   } else if (sec==='items') {
-    const rar=(item.rarity||'—');
-    const typeName=ITEM_TYPES[item.type]||item.type||'—';
-    html+=`<div class="sheet-name" style="font-size:16px;margin-bottom:4px">${item.name}</div>
-    <div class="ref-detail-prop" style="margin-bottom:10px">
-      <div><strong>Type</strong><br><span>${typeName}</span></div>
-      <div><strong>Rarity</strong><br><span class="ref-tag rarity-${rar.toLowerCase().replace(' ','-')}">${rar}</span></div>
-      <div><strong>Attunement</strong><br><span>${item.reqAttune?(typeof item.reqAttune==='string'?item.reqAttune:'Required'):'Not Required'}</span></div>
-      <div><strong>Source</strong><br><span>${item.source||'—'}</span></div>
+    const rar = (item.rarity||'—');
+    const typeName = ITEM_TYPES[item.type]||item.type||'—';
+    html+=`<div style="display:flex;gap:16px;flex-wrap:wrap">
+      <div style="min-width:160px">
+        <div class="sheet-name" style="font-size:15px;margin-bottom:6px">${item.name}</div>
+        <div class="ref-detail-prop" style="flex-direction:column;gap:4px">
+          <div><strong>Type</strong> &nbsp;<span>${typeName}</span></div>
+          <div><strong>Rarity</strong> &nbsp;<span class="ref-tag rarity-${rar.toLowerCase().replace(/ /g,'-')}">${rar}</span></div>
+          <div><strong>Attunement</strong> &nbsp;<span>${item.reqAttune?(typeof item.reqAttune==='string'?item.reqAttune:'Required'):'Not Required'}</span></div>
+          <div><strong>Source</strong> &nbsp;<span style="color:var(--text3)">${item.source||'—'}</span></div>
+        </div>
+      </div>
+      <div style="flex:2;min-width:240px"><div class="ref-entries">${renderEntries(item.entries||[])}</div></div>
+    </div>`;
+
+  } else if (sec==='conditions') {
+    html+=`<div class="sheet-name" style="font-size:15px;margin-bottom:8px">${item.name}
+      <span style="font-size:11px;font-weight:normal;color:var(--text3);margin-left:8px">${item.type||'condition'}</span>
     </div>
     <div class="ref-entries">${renderEntries(item.entries||[])}</div>`;
 
-  } else {
-    // conditions + feats
-    const prereq = sec==='feats'?((item.prerequisite||[]).map(p=>{
+  } else if (sec==='feats') {
+    const prereq = (item.prerequisite||[]).map(p=>{
       if (p.ability) return Object.keys(p.ability[0]||{}).join('/').toUpperCase()+' 13+';
       if (p.race) return p.race.map(rr=>rr.displayEntry||rr.name||'').join(' or ');
       if (p.spellcasting) return 'Spellcasting';
+      if (p.proficiency) return 'Proficiency';
       return Object.keys(p)[0]||'';
-    }).filter(Boolean).join(', ')||'None'):'';
-    html+=`<div class="sheet-name" style="font-size:16px;margin-bottom:4px">${item.name}</div>
-    ${prereq?`<div style="color:var(--text3);font-size:12px;margin-bottom:10px">Prerequisite: ${prereq}</div>`:''}
-    <div style="color:var(--text3);font-size:11px;margin-bottom:10px">Source: ${item.source||'—'}</div>
+    }).filter(Boolean).join(', ')||'None';
+    html+=`<div class="sheet-name" style="font-size:15px;margin-bottom:4px">${item.name}
+      <span style="font-size:11px;font-weight:normal;color:var(--text3);margin-left:8px">Prereq: ${prereq} &nbsp;·&nbsp; ${item.source||'—'}</span>
+    </div>
     <div class="ref-entries">${renderEntries(item.entries||[])}</div>`;
   }
   return html;
 }
+
+function renderRefDetail(item) { return renderRefExpandContent(item, refFiltered.indexOf(item)); }
 
 function addSpellToPC(idx) {
   const sp = refFiltered[idx];
