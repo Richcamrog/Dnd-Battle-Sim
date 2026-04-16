@@ -759,7 +759,7 @@ pre{background:var(--card2);border:1px solid var(--border);border-radius:6px;pad
           <li><strong>Search box</strong> — Type any monster name to search the full 5etools bestiary, click to add</li>
           <li><strong>+ Custom</strong> — Opens a form to manually enter any monster with custom stats (use this if search doesn't find what you want)</li>
           <li><strong>×</strong> buttons — Remove individual monsters. <strong>−/+</strong> change count. <strong>Clear</strong> wipes the whole map.</li>
-          <li>Any monster from 5etools MM + XMM will appear in search once bestiary loads</li>
+          <li>Any monster from 5etools Monster Manual 2024 (XMM) will appear in search once bestiary loads</li>
         </ul>
         <h2>Terrain Rules</h2>
         <ul>
@@ -795,7 +795,7 @@ pre{background:var(--card2);border:1px solid var(--border);border-radius:6px;pad
   "saving_throw_profs": ["str", "con"]
 }</pre>
         <h2>Monster Data</h2>
-        <p>Loaded from the <a href="https://github.com/5etools-mirror-3/5etools-src" target="_blank">5etools GitHub repo</a> (MM + XMM). Cached in localStorage — works offline after first load.</p>
+        <p>Loaded from the <a href="https://github.com/5etools-mirror-3/5etools-src" target="_blank">5etools GitHub repo</a> (Monster Manual 2024 (XMM)). Cached in localStorage — works offline after first load.</p>
       </div>
     </div>
   </div>
@@ -920,7 +920,7 @@ let sheetView = true;  // show Roll20-style character sheets by default
 // ── Reference tab state ──
 const REF_BASE = 'https://raw.githubusercontent.com/5etools-mirror-3/5etools-src/master/';
 const REF_SOURCES = {
-  spells:     ['data/spells/spells-phb.json','data/spells/spells-xge.json','data/spells/spells-tce.json'],
+  spells:     ['data/spells/spells-xphb.json','data/spells/spells-xge.json','data/spells/spells-tce.json'],
   items:      ['data/items.json'],
   conditions: ['data/conditionsdiseases.json'],
   feats:      ['data/feats.json'],
@@ -966,7 +966,6 @@ function pmod(s) { return Math.floor(((s||10)-10)/2); }
 // ============================================================
 const CACHE_KEY = 'dnd5e_bestiary_v8';
 const BSRC = [
-  'https://raw.githubusercontent.com/5etools-mirror-3/5etools-src/master/data/bestiary/bestiary-mm.json',
   'https://raw.githubusercontent.com/5etools-mirror-3/5etools-src/master/data/bestiary/bestiary-xmm.json'
 ];
 
