@@ -2807,9 +2807,26 @@ async function loadRefSection(sec) {
   document.getElementById('refTable').innerHTML = '<div style="padding:32px;text-align:center;color:var(--text3)">Loading…</div>';
   try {
     const results = await Promise.all(urls.map(u => fetch(REF_BASE+u).then(r=>r.json()).catch(()=>({}))));
-    if (sec==='spells')     refData.spells     = results.flatMap(r=>r.spell||[]);
+    if (sec==='spells') {
+      const all = results.flatMap(r=>r.spell||[]);
+      const seen = new Map();
+      for (const s of all) {
+        const key = (s.name||'').toLowerCase();
+        if (!seen.has(key) || (s.source||'').toUpperCase()==='XPHB') seen.set(key, s);
+      }
+      refData.spells = [...seen.values()];
+    }
     else if (sec==='items') refData.items      = [...(results[0].item||[]),...(results[0].itemGroup||[])];
-    else if (sec==='conditions') refData.conditions = [...(results[0].condition||[]),...(results[0].disease||[])];
+    else if (sec==='conditions') {
+      const all = [...(results[0].condition||[]),...(results[0].disease||[])];
+      // Deduplicate by name — prefer XPHB/2024 source, else keep first seen
+      const seen = new Map();
+      for (const c of all) {
+        const key = (c.name||'').toLowerCase();
+        if (!seen.has(key) || (c.source||'').toUpperCase()==='XPHB') seen.set(key, c);
+      }
+      refData.conditions = [...seen.values()].sort((a,b)=>(a.name||'').localeCompare(b.name||''));
+    }
     else if (sec==='feats') refData.feats      = results[0].feat||[];
   } catch(e) {
     document.getElementById('refTable').innerHTML = `<div style="padding:24px;color:var(--red)">Failed to load data. Check connection.</div>`;
