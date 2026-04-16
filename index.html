@@ -2908,7 +2908,7 @@ function renderEntries(entries, depth=0) {
   let out='';
   for (const e of entries) {
     if (typeof e==='string') {
-      out+=`<p>${stripTags(e)}</p>`;
+      out+=`<p>${flatEClean(e)}</p>`;
     } else if (e.type==='entries'||e.type==='section') {
       if (e.name) out+=`<p><strong>${e.name}.</strong> `;
       out+=renderEntries(e.entries,depth+1);
@@ -2916,19 +2916,19 @@ function renderEntries(entries, depth=0) {
     } else if (e.type==='list') {
       out+='<ul style="padding-left:18px;margin:4px 0">';
       for (const item of (e.items||[])) {
-        if (typeof item==='string') out+=`<li>${stripTags(item)}</li>`;
+        if (typeof item==='string') out+=`<li>${flatEClean(item)}</li>`;
         else if (item.type==='item') out+=`<li><em>${item.name||''}</em>${item.entries?'. '+renderEntries(item.entries,depth+1):''}`;
         else out+=`<li>${renderEntries([item],depth+1)}</li>`;
       }
       out+='</ul>';
     } else if (e.type==='table') {
       out+='<table class="ref-entries-tbl"><thead><tr>';
-      (e.colLabels||[]).forEach(h=>{ out+=`<th>${stripTags(h)}</th>`; });
+      (e.colLabels||[]).forEach(h=>{ out+=`<th>${flatEClean(h)}</th>`; });
       out+='</tr></thead><tbody>';
       (e.rows||[]).forEach(row=>{
         out+='<tr>';
         (Array.isArray(row)?row:[row]).forEach(cell=>{
-          out+=`<td>${typeof cell==='string'?stripTags(cell):(cell?.roll?`${cell.roll.exact??cell.roll.min+'-'+cell.roll.max}`:(stripTags(String(cell||''))))}</td>`;
+          out+=`<td>${typeof cell==='string'?flatEClean(cell):(cell?.roll?`${cell.roll.exact??cell.roll.min+'-'+cell.roll.max}`:(flatEClean(String(cell||''))))}</td>`;
         });
         out+='</tr>';
       });
